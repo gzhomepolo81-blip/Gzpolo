@@ -1,0 +1,3336 @@
+esphome:
+  name: hmi-system
+  friendly_name: HMI System
+
+esp32:
+  board: esp32-s3-devkitc-1
+  variant: esp32s3
+  flash_size: 16MB
+  framework:
+    type: esp-idf
+
+psram:
+  mode: octal
+  speed: 80MHz
+
+json:
+
+logger:
+  level: WARN
+  logs:
+    homeassistant.sensor: WARN
+
+api:
+  encryption:
+    key: "6pQqTj/pSjZ3zeMJyI3i2KB9uczRNSiKdeHV2RFWoUw="
+
+ota:
+- platform: esphome
+
+wifi:
+  ssid: RRC Home Assistant
+  password: password
+
+  ap:
+    ssid: "Smart-HMI-Fallback"
+    password: "HmiFallback72"
+
+captive_portal:
+
+globals:
+- id: humidifier_ui_enabled
+  type: bool
+  restore_value: no
+  initial_value: 'false'
+- id: hmi_temp_ready
+  type: bool
+  initial_value: 'false'
+- id: hmi_humidity_ready
+  type: bool
+  initial_value: 'false'
+- id: hmi_co2_ready
+  type: bool
+  initial_value: 'false'
+- id: hmi_voc_ready
+  type: bool
+  initial_value: 'false'
+- id: hmi_nox_ready
+  type: bool
+  initial_value: 'false'
+- id: hmi_temp
+  type: float
+  initial_value: '0'
+- id: hmi_humidity
+  type: float
+  initial_value: '0'
+- id: hmi_co2
+  type: float
+  initial_value: '0'
+- id: hmi_voc
+  type: float
+  initial_value: '0'
+- id: hmi_nox
+  type: float
+  initial_value: '0'
+- id: hmi_co2_emergency
+  type: bool
+  initial_value: 'false'
+- id: hmi_voc_emergency
+  type: bool
+  initial_value: 'false'
+- id: hmi_nox_emergency
+  type: bool
+  initial_value: 'false'
+- id: hmi_emergency_mode
+  type: bool
+  initial_value: 'false'
+- id: hmi_recovery_start_ms
+  type: uint32_t
+  initial_value: '0'
+- id: hmi_emergency_flash
+  type: bool
+  initial_value: 'false'
+- id: hmi_indicator_enabled
+  type: bool
+  restore_value: yes
+  initial_value: 'true'
+- id: hmi_night_mode
+  type: bool
+  restore_value: yes
+  initial_value: 'false'
+
+# History charts: Temperature (left), Humidity (middle), CO2 + VOC (right).
+# Each sensor keeps its own 24-point rolling trace; the selected time range controls the time span represented.
+- id: hist_temp_samples
+  type: std::vector<float>
+  restore_value: no
+  initial_value: 'std::vector<float>()'
+- id: hist_humidity_samples
+  type: std::vector<float>
+  restore_value: no
+  initial_value: 'std::vector<float>()'
+- id: hist_co2_samples
+  type: std::vector<float>
+  restore_value: no
+  initial_value: 'std::vector<float>()'
+- id: hist_voc_samples
+  type: std::vector<float>
+  restore_value: no
+  initial_value: 'std::vector<float>()'
+
+# TEMPERATURE REFERENCE SETPOINTS (no HVAC connection required)
+- id: history_range
+  type: int
+  restore_value: no
+  initial_value: '0'
+- id: hist_temp_min_24h
+  type: float
+  restore_value: no
+  initial_value: '-1'
+- id: hist_temp_min_2d
+  type: float
+  restore_value: no
+  initial_value: '-1'
+- id: hist_temp_min_7d
+  type: float
+  restore_value: no
+  initial_value: '-1'
+- id: hist_temp_mean_24h
+  type: float
+  restore_value: no
+  initial_value: '-1'
+- id: hist_temp_mean_2d
+  type: float
+  restore_value: no
+  initial_value: '-1'
+- id: hist_temp_mean_7d
+  type: float
+  restore_value: no
+  initial_value: '-1'
+- id: hist_temp_max_24h
+  type: float
+  restore_value: no
+  initial_value: '-1'
+- id: hist_temp_max_2d
+  type: float
+  restore_value: no
+  initial_value: '-1'
+- id: hist_temp_max_7d
+  type: float
+  restore_value: no
+  initial_value: '-1'
+- id: hist_humidity_min_24h
+  type: float
+  restore_value: no
+  initial_value: '-1'
+- id: hist_humidity_min_2d
+  type: float
+  restore_value: no
+  initial_value: '-1'
+- id: hist_humidity_min_7d
+  type: float
+  restore_value: no
+  initial_value: '-1'
+- id: hist_humidity_mean_24h
+  type: float
+  restore_value: no
+  initial_value: '-1'
+- id: hist_humidity_mean_2d
+  type: float
+  restore_value: no
+  initial_value: '-1'
+- id: hist_humidity_mean_7d
+  type: float
+  restore_value: no
+  initial_value: '-1'
+- id: hist_humidity_max_24h
+  type: float
+  restore_value: no
+  initial_value: '-1'
+- id: hist_humidity_max_2d
+  type: float
+  restore_value: no
+  initial_value: '-1'
+- id: hist_humidity_max_7d
+  type: float
+  restore_value: no
+  initial_value: '-1'
+- id: hist_co2_mean_24h
+  type: float
+  restore_value: no
+  initial_value: '-1'
+- id: hist_co2_mean_2d
+  type: float
+  restore_value: no
+  initial_value: '-1'
+- id: hist_co2_mean_7d
+  type: float
+  restore_value: no
+  initial_value: '-1'
+- id: hist_tvoc_mean_24h
+  type: float
+  restore_value: no
+  initial_value: '-1'
+- id: hist_tvoc_mean_2d
+  type: float
+  restore_value: no
+  initial_value: '-1'
+- id: hist_tvoc_mean_7d
+  type: float
+  restore_value: no
+  initial_value: '-1'
+
+number:
+- platform: template
+  id: minimum_temperature
+  name: "HMI Minimum Temperature"
+  min_value: 10
+  max_value: 30
+  step: 0.5
+  initial_value: 18
+  optimistic: true
+  restore_value: true
+  unit_of_measurement: "°C"
+  on_value:
+    then:
+    - lvgl.label.update:
+        id: min_temperature_value
+        text: !lambda |-
+          return str_sprintf("%.1f°", x);
+
+- platform: template
+  id: target_temperature
+  name: "HMI Target Temperature"
+  min_value: 10
+  max_value: 30
+  step: 0.5
+  initial_value: 22
+  optimistic: true
+  restore_value: true
+  unit_of_measurement: "°C"
+  on_value:
+    then:
+    - lvgl.label.update:
+        id: target_temperature_value
+        text: !lambda |-
+          return str_sprintf("%.1f°", x);
+
+- platform: template
+  id: maximum_temperature
+  name: "HMI Maximum Temperature"
+  min_value: 15
+  max_value: 40
+  step: 0.5
+  initial_value: 26
+  optimistic: true
+  restore_value: true
+  unit_of_measurement: "°C"
+  on_value:
+    then:
+    - lvgl.label.update:
+        id: max_temperature_value
+        text: !lambda |-
+          return str_sprintf("%.1f°", x);
+
+# HOME ASSISTANT SENSOR DATA
+time:
+- platform: sntp
+  id: hmi_clock
+  timezone: America/Winnipeg
+  on_time:
+    - seconds: /1
+      then:
+        - lvgl.label.update:
+            id: date_value
+            text: !lambda |-
+              auto now = id(hmi_clock).now();
+              if (!now.is_valid()) return "Syncing date...";
+              return now.strftime("%a, %b %d, %Y");
+        - lvgl.label.update:
+            id: time_value
+            text: !lambda |-
+              auto now = id(hmi_clock).now();
+              if (!now.is_valid()) return "Syncing...";
+              return now.strftime("%I:%M %p");
+        - lvgl.label.update:
+            id: weather_header_date
+            text: !lambda |-
+              auto now = id(hmi_clock).now();
+              if (!now.is_valid()) return "Syncing date...";
+              return now.strftime("%a, %b %d, %Y");
+        - lvgl.label.update:
+            id: weather_header_time
+            text: !lambda |-
+              auto now = id(hmi_clock).now();
+              if (!now.is_valid()) return "Syncing...";
+              return now.strftime("%I:%M %p");
+
+sensor:
+- platform: homeassistant
+  id: ha_temperature
+  entity_id: sensor.ke_ting_senser_temperature
+  internal: true
+  on_value:
+    then:
+    - lambda: |-
+        if (isnan(x)) return;
+        id(hmi_temp) = x;
+        id(hmi_temp_ready) = true;
+        auto &samples = id(hist_temp_samples);
+        samples.push_back(x);
+        if (samples.size() > 24) samples.erase(samples.begin());
+    - lvgl.line.update:
+        id: history_temp_curve
+        points:
+          - x: 0
+            y: !lambda |-
+              auto &v = id(hist_temp_samples); if (v.empty() || 0 < (24 - (int)v.size())) return 220; int k = 0 - (24 - (int)v.size()); float a = v[k]; if (a < 10.0f) a = 10.0f; if (a > 40.0f) a = 40.0f; return (int)(210.0f - ((a - 10.0f) / (30.0f)) * 195.0f);
+          - x: 11
+            y: !lambda |-
+              auto &v = id(hist_temp_samples); if (v.empty() || 1 < (24 - (int)v.size())) return 220; int k = 1 - (24 - (int)v.size()); float a = v[k]; if (a < 10.0f) a = 10.0f; if (a > 40.0f) a = 40.0f; return (int)(210.0f - ((a - 10.0f) / (30.0f)) * 195.0f);
+          - x: 23
+            y: !lambda |-
+              auto &v = id(hist_temp_samples); if (v.empty() || 2 < (24 - (int)v.size())) return 220; int k = 2 - (24 - (int)v.size()); float a = v[k]; if (a < 10.0f) a = 10.0f; if (a > 40.0f) a = 40.0f; return (int)(210.0f - ((a - 10.0f) / (30.0f)) * 195.0f);
+          - x: 34
+            y: !lambda |-
+              auto &v = id(hist_temp_samples); if (v.empty() || 3 < (24 - (int)v.size())) return 220; int k = 3 - (24 - (int)v.size()); float a = v[k]; if (a < 10.0f) a = 10.0f; if (a > 40.0f) a = 40.0f; return (int)(210.0f - ((a - 10.0f) / (30.0f)) * 195.0f);
+          - x: 45
+            y: !lambda |-
+              auto &v = id(hist_temp_samples); if (v.empty() || 4 < (24 - (int)v.size())) return 220; int k = 4 - (24 - (int)v.size()); float a = v[k]; if (a < 10.0f) a = 10.0f; if (a > 40.0f) a = 40.0f; return (int)(210.0f - ((a - 10.0f) / (30.0f)) * 195.0f);
+          - x: 57
+            y: !lambda |-
+              auto &v = id(hist_temp_samples); if (v.empty() || 5 < (24 - (int)v.size())) return 220; int k = 5 - (24 - (int)v.size()); float a = v[k]; if (a < 10.0f) a = 10.0f; if (a > 40.0f) a = 40.0f; return (int)(210.0f - ((a - 10.0f) / (30.0f)) * 195.0f);
+          - x: 68
+            y: !lambda |-
+              auto &v = id(hist_temp_samples); if (v.empty() || 6 < (24 - (int)v.size())) return 220; int k = 6 - (24 - (int)v.size()); float a = v[k]; if (a < 10.0f) a = 10.0f; if (a > 40.0f) a = 40.0f; return (int)(210.0f - ((a - 10.0f) / (30.0f)) * 195.0f);
+          - x: 79
+            y: !lambda |-
+              auto &v = id(hist_temp_samples); if (v.empty() || 7 < (24 - (int)v.size())) return 220; int k = 7 - (24 - (int)v.size()); float a = v[k]; if (a < 10.0f) a = 10.0f; if (a > 40.0f) a = 40.0f; return (int)(210.0f - ((a - 10.0f) / (30.0f)) * 195.0f);
+          - x: 90
+            y: !lambda |-
+              auto &v = id(hist_temp_samples); if (v.empty() || 8 < (24 - (int)v.size())) return 220; int k = 8 - (24 - (int)v.size()); float a = v[k]; if (a < 10.0f) a = 10.0f; if (a > 40.0f) a = 40.0f; return (int)(210.0f - ((a - 10.0f) / (30.0f)) * 195.0f);
+          - x: 102
+            y: !lambda |-
+              auto &v = id(hist_temp_samples); if (v.empty() || 9 < (24 - (int)v.size())) return 220; int k = 9 - (24 - (int)v.size()); float a = v[k]; if (a < 10.0f) a = 10.0f; if (a > 40.0f) a = 40.0f; return (int)(210.0f - ((a - 10.0f) / (30.0f)) * 195.0f);
+          - x: 113
+            y: !lambda |-
+              auto &v = id(hist_temp_samples); if (v.empty() || 10 < (24 - (int)v.size())) return 220; int k = 10 - (24 - (int)v.size()); float a = v[k]; if (a < 10.0f) a = 10.0f; if (a > 40.0f) a = 40.0f; return (int)(210.0f - ((a - 10.0f) / (30.0f)) * 195.0f);
+          - x: 124
+            y: !lambda |-
+              auto &v = id(hist_temp_samples); if (v.empty() || 11 < (24 - (int)v.size())) return 220; int k = 11 - (24 - (int)v.size()); float a = v[k]; if (a < 10.0f) a = 10.0f; if (a > 40.0f) a = 40.0f; return (int)(210.0f - ((a - 10.0f) / (30.0f)) * 195.0f);
+          - x: 136
+            y: !lambda |-
+              auto &v = id(hist_temp_samples); if (v.empty() || 12 < (24 - (int)v.size())) return 220; int k = 12 - (24 - (int)v.size()); float a = v[k]; if (a < 10.0f) a = 10.0f; if (a > 40.0f) a = 40.0f; return (int)(210.0f - ((a - 10.0f) / (30.0f)) * 195.0f);
+          - x: 147
+            y: !lambda |-
+              auto &v = id(hist_temp_samples); if (v.empty() || 13 < (24 - (int)v.size())) return 220; int k = 13 - (24 - (int)v.size()); float a = v[k]; if (a < 10.0f) a = 10.0f; if (a > 40.0f) a = 40.0f; return (int)(210.0f - ((a - 10.0f) / (30.0f)) * 195.0f);
+          - x: 158
+            y: !lambda |-
+              auto &v = id(hist_temp_samples); if (v.empty() || 14 < (24 - (int)v.size())) return 220; int k = 14 - (24 - (int)v.size()); float a = v[k]; if (a < 10.0f) a = 10.0f; if (a > 40.0f) a = 40.0f; return (int)(210.0f - ((a - 10.0f) / (30.0f)) * 195.0f);
+          - x: 170
+            y: !lambda |-
+              auto &v = id(hist_temp_samples); if (v.empty() || 15 < (24 - (int)v.size())) return 220; int k = 15 - (24 - (int)v.size()); float a = v[k]; if (a < 10.0f) a = 10.0f; if (a > 40.0f) a = 40.0f; return (int)(210.0f - ((a - 10.0f) / (30.0f)) * 195.0f);
+          - x: 181
+            y: !lambda |-
+              auto &v = id(hist_temp_samples); if (v.empty() || 16 < (24 - (int)v.size())) return 220; int k = 16 - (24 - (int)v.size()); float a = v[k]; if (a < 10.0f) a = 10.0f; if (a > 40.0f) a = 40.0f; return (int)(210.0f - ((a - 10.0f) / (30.0f)) * 195.0f);
+          - x: 192
+            y: !lambda |-
+              auto &v = id(hist_temp_samples); if (v.empty() || 17 < (24 - (int)v.size())) return 220; int k = 17 - (24 - (int)v.size()); float a = v[k]; if (a < 10.0f) a = 10.0f; if (a > 40.0f) a = 40.0f; return (int)(210.0f - ((a - 10.0f) / (30.0f)) * 195.0f);
+          - x: 203
+            y: !lambda |-
+              auto &v = id(hist_temp_samples); if (v.empty() || 18 < (24 - (int)v.size())) return 220; int k = 18 - (24 - (int)v.size()); float a = v[k]; if (a < 10.0f) a = 10.0f; if (a > 40.0f) a = 40.0f; return (int)(210.0f - ((a - 10.0f) / (30.0f)) * 195.0f);
+          - x: 215
+            y: !lambda |-
+              auto &v = id(hist_temp_samples); if (v.empty() || 19 < (24 - (int)v.size())) return 220; int k = 19 - (24 - (int)v.size()); float a = v[k]; if (a < 10.0f) a = 10.0f; if (a > 40.0f) a = 40.0f; return (int)(210.0f - ((a - 10.0f) / (30.0f)) * 195.0f);
+          - x: 226
+            y: !lambda |-
+              auto &v = id(hist_temp_samples); if (v.empty() || 20 < (24 - (int)v.size())) return 220; int k = 20 - (24 - (int)v.size()); float a = v[k]; if (a < 10.0f) a = 10.0f; if (a > 40.0f) a = 40.0f; return (int)(210.0f - ((a - 10.0f) / (30.0f)) * 195.0f);
+          - x: 237
+            y: !lambda |-
+              auto &v = id(hist_temp_samples); if (v.empty() || 21 < (24 - (int)v.size())) return 220; int k = 21 - (24 - (int)v.size()); float a = v[k]; if (a < 10.0f) a = 10.0f; if (a > 40.0f) a = 40.0f; return (int)(210.0f - ((a - 10.0f) / (30.0f)) * 195.0f);
+          - x: 249
+            y: !lambda |-
+              auto &v = id(hist_temp_samples); if (v.empty() || 22 < (24 - (int)v.size())) return 220; int k = 22 - (24 - (int)v.size()); float a = v[k]; if (a < 10.0f) a = 10.0f; if (a > 40.0f) a = 40.0f; return (int)(210.0f - ((a - 10.0f) / (30.0f)) * 195.0f);
+          - x: 260
+            y: !lambda |-
+              auto &v = id(hist_temp_samples); if (v.empty() || 23 < (24 - (int)v.size())) return 220; int k = 23 - (24 - (int)v.size()); float a = v[k]; if (a < 10.0f) a = 10.0f; if (a > 40.0f) a = 40.0f; return (int)(210.0f - ((a - 10.0f) / (30.0f)) * 195.0f);
+    - logger.log:
+        format: "HA Temperature received: %.2f"
+        args: ["x"]
+    - lvgl.label.update:
+        id: temp_card_value
+        text: !lambda |-
+          return str_sprintf("%.1f °C", x);
+    - lvgl.label.update:
+        id: room_temperature_value
+        text: !lambda |-
+          return str_sprintf("%.1f°C", x);
+    - lvgl.label.update:
+        id: control_temperature_value
+        text: !lambda |-
+          return str_sprintf("%.1f°C", x);
+    - lvgl.label.update:
+        id: control_temperature_status
+        text: !lambda |-
+          if (x >= 20.0f && x <= 25.0f) return "COMFORTABLE";
+          if (x < 20.0f) return "COOL";
+          return "WARM";
+        text_color: !lambda |-
+          return (x >= 20.0f && x <= 25.0f) ? lv_color_hex(0x168A45) : lv_color_hex(0xD97706);
+    - lvgl.widget.update:
+        id: control_temperature_marker
+        x: !lambda |-
+          float v = x;
+          if (v < 0.0f) v = 0.0f;
+          if (v > 40.0f) v = 40.0f;
+          return (int)(42 + (v / 40.0f) * 268.0f - 8.0f);
+    - if:
+        condition:
+          lambda: 'return x < id(minimum_temperature).state || x > id(maximum_temperature).state;'
+        then:
+        - lvgl.image.update:
+            id: temp_alarm_status
+            src: alarm_status_on
+        - lvgl.label.update:
+            id: control_alarm_state_label
+            text: "ALERT"
+            text_color: 0xDC2626
+        else:
+        - lvgl.image.update:
+            id: temp_alarm_status
+            src: alarm_status_off
+        - lvgl.label.update:
+            id: control_alarm_state_label
+            text: "NORMAL"
+            text_color: 0x168A45
+
+- platform: homeassistant
+  id: ha_humidity
+  entity_id: sensor.ke_ting_senser_humidity
+  internal: true
+  on_value:
+    then:
+    - lambda: |-
+        if (isnan(x)) return;
+        id(hmi_humidity) = x;
+        id(hmi_humidity_ready) = true;
+        auto &samples = id(hist_humidity_samples);
+        samples.push_back(x);
+        if (samples.size() > 24) samples.erase(samples.begin());
+    - lvgl.line.update:
+        id: history_humidity_curve
+        points:
+          - x: 0
+            y: !lambda |-
+              auto &v = id(hist_humidity_samples); if (v.empty() || 0 < (24 - (int)v.size())) return 220; int k = 0 - (24 - (int)v.size()); float a = v[k]; if (a < 0.0f) a = 0.0f; if (a > 100.0f) a = 100.0f; return (int)(210.0f - ((a - 0.0f) / (100.0f)) * 195.0f);
+          - x: 11
+            y: !lambda |-
+              auto &v = id(hist_humidity_samples); if (v.empty() || 1 < (24 - (int)v.size())) return 220; int k = 1 - (24 - (int)v.size()); float a = v[k]; if (a < 0.0f) a = 0.0f; if (a > 100.0f) a = 100.0f; return (int)(210.0f - ((a - 0.0f) / (100.0f)) * 195.0f);
+          - x: 22
+            y: !lambda |-
+              auto &v = id(hist_humidity_samples); if (v.empty() || 2 < (24 - (int)v.size())) return 220; int k = 2 - (24 - (int)v.size()); float a = v[k]; if (a < 0.0f) a = 0.0f; if (a > 100.0f) a = 100.0f; return (int)(210.0f - ((a - 0.0f) / (100.0f)) * 195.0f);
+          - x: 34
+            y: !lambda |-
+              auto &v = id(hist_humidity_samples); if (v.empty() || 3 < (24 - (int)v.size())) return 220; int k = 3 - (24 - (int)v.size()); float a = v[k]; if (a < 0.0f) a = 0.0f; if (a > 100.0f) a = 100.0f; return (int)(210.0f - ((a - 0.0f) / (100.0f)) * 195.0f);
+          - x: 45
+            y: !lambda |-
+              auto &v = id(hist_humidity_samples); if (v.empty() || 4 < (24 - (int)v.size())) return 220; int k = 4 - (24 - (int)v.size()); float a = v[k]; if (a < 0.0f) a = 0.0f; if (a > 100.0f) a = 100.0f; return (int)(210.0f - ((a - 0.0f) / (100.0f)) * 195.0f);
+          - x: 56
+            y: !lambda |-
+              auto &v = id(hist_humidity_samples); if (v.empty() || 5 < (24 - (int)v.size())) return 220; int k = 5 - (24 - (int)v.size()); float a = v[k]; if (a < 0.0f) a = 0.0f; if (a > 100.0f) a = 100.0f; return (int)(210.0f - ((a - 0.0f) / (100.0f)) * 195.0f);
+          - x: 67
+            y: !lambda |-
+              auto &v = id(hist_humidity_samples); if (v.empty() || 6 < (24 - (int)v.size())) return 220; int k = 6 - (24 - (int)v.size()); float a = v[k]; if (a < 0.0f) a = 0.0f; if (a > 100.0f) a = 100.0f; return (int)(210.0f - ((a - 0.0f) / (100.0f)) * 195.0f);
+          - x: 79
+            y: !lambda |-
+              auto &v = id(hist_humidity_samples); if (v.empty() || 7 < (24 - (int)v.size())) return 220; int k = 7 - (24 - (int)v.size()); float a = v[k]; if (a < 0.0f) a = 0.0f; if (a > 100.0f) a = 100.0f; return (int)(210.0f - ((a - 0.0f) / (100.0f)) * 195.0f);
+          - x: 90
+            y: !lambda |-
+              auto &v = id(hist_humidity_samples); if (v.empty() || 8 < (24 - (int)v.size())) return 220; int k = 8 - (24 - (int)v.size()); float a = v[k]; if (a < 0.0f) a = 0.0f; if (a > 100.0f) a = 100.0f; return (int)(210.0f - ((a - 0.0f) / (100.0f)) * 195.0f);
+          - x: 101
+            y: !lambda |-
+              auto &v = id(hist_humidity_samples); if (v.empty() || 9 < (24 - (int)v.size())) return 220; int k = 9 - (24 - (int)v.size()); float a = v[k]; if (a < 0.0f) a = 0.0f; if (a > 100.0f) a = 100.0f; return (int)(210.0f - ((a - 0.0f) / (100.0f)) * 195.0f);
+          - x: 112
+            y: !lambda |-
+              auto &v = id(hist_humidity_samples); if (v.empty() || 10 < (24 - (int)v.size())) return 220; int k = 10 - (24 - (int)v.size()); float a = v[k]; if (a < 0.0f) a = 0.0f; if (a > 100.0f) a = 100.0f; return (int)(210.0f - ((a - 0.0f) / (100.0f)) * 195.0f);
+          - x: 123
+            y: !lambda |-
+              auto &v = id(hist_humidity_samples); if (v.empty() || 11 < (24 - (int)v.size())) return 220; int k = 11 - (24 - (int)v.size()); float a = v[k]; if (a < 0.0f) a = 0.0f; if (a > 100.0f) a = 100.0f; return (int)(210.0f - ((a - 0.0f) / (100.0f)) * 195.0f);
+          - x: 135
+            y: !lambda |-
+              auto &v = id(hist_humidity_samples); if (v.empty() || 12 < (24 - (int)v.size())) return 220; int k = 12 - (24 - (int)v.size()); float a = v[k]; if (a < 0.0f) a = 0.0f; if (a > 100.0f) a = 100.0f; return (int)(210.0f - ((a - 0.0f) / (100.0f)) * 195.0f);
+          - x: 146
+            y: !lambda |-
+              auto &v = id(hist_humidity_samples); if (v.empty() || 13 < (24 - (int)v.size())) return 220; int k = 13 - (24 - (int)v.size()); float a = v[k]; if (a < 0.0f) a = 0.0f; if (a > 100.0f) a = 100.0f; return (int)(210.0f - ((a - 0.0f) / (100.0f)) * 195.0f);
+          - x: 157
+            y: !lambda |-
+              auto &v = id(hist_humidity_samples); if (v.empty() || 14 < (24 - (int)v.size())) return 220; int k = 14 - (24 - (int)v.size()); float a = v[k]; if (a < 0.0f) a = 0.0f; if (a > 100.0f) a = 100.0f; return (int)(210.0f - ((a - 0.0f) / (100.0f)) * 195.0f);
+          - x: 168
+            y: !lambda |-
+              auto &v = id(hist_humidity_samples); if (v.empty() || 15 < (24 - (int)v.size())) return 220; int k = 15 - (24 - (int)v.size()); float a = v[k]; if (a < 0.0f) a = 0.0f; if (a > 100.0f) a = 100.0f; return (int)(210.0f - ((a - 0.0f) / (100.0f)) * 195.0f);
+          - x: 179
+            y: !lambda |-
+              auto &v = id(hist_humidity_samples); if (v.empty() || 16 < (24 - (int)v.size())) return 220; int k = 16 - (24 - (int)v.size()); float a = v[k]; if (a < 0.0f) a = 0.0f; if (a > 100.0f) a = 100.0f; return (int)(210.0f - ((a - 0.0f) / (100.0f)) * 195.0f);
+          - x: 191
+            y: !lambda |-
+              auto &v = id(hist_humidity_samples); if (v.empty() || 17 < (24 - (int)v.size())) return 220; int k = 17 - (24 - (int)v.size()); float a = v[k]; if (a < 0.0f) a = 0.0f; if (a > 100.0f) a = 100.0f; return (int)(210.0f - ((a - 0.0f) / (100.0f)) * 195.0f);
+          - x: 202
+            y: !lambda |-
+              auto &v = id(hist_humidity_samples); if (v.empty() || 18 < (24 - (int)v.size())) return 220; int k = 18 - (24 - (int)v.size()); float a = v[k]; if (a < 0.0f) a = 0.0f; if (a > 100.0f) a = 100.0f; return (int)(210.0f - ((a - 0.0f) / (100.0f)) * 195.0f);
+          - x: 213
+            y: !lambda |-
+              auto &v = id(hist_humidity_samples); if (v.empty() || 19 < (24 - (int)v.size())) return 220; int k = 19 - (24 - (int)v.size()); float a = v[k]; if (a < 0.0f) a = 0.0f; if (a > 100.0f) a = 100.0f; return (int)(210.0f - ((a - 0.0f) / (100.0f)) * 195.0f);
+          - x: 224
+            y: !lambda |-
+              auto &v = id(hist_humidity_samples); if (v.empty() || 20 < (24 - (int)v.size())) return 220; int k = 20 - (24 - (int)v.size()); float a = v[k]; if (a < 0.0f) a = 0.0f; if (a > 100.0f) a = 100.0f; return (int)(210.0f - ((a - 0.0f) / (100.0f)) * 195.0f);
+          - x: 236
+            y: !lambda |-
+              auto &v = id(hist_humidity_samples); if (v.empty() || 21 < (24 - (int)v.size())) return 220; int k = 21 - (24 - (int)v.size()); float a = v[k]; if (a < 0.0f) a = 0.0f; if (a > 100.0f) a = 100.0f; return (int)(210.0f - ((a - 0.0f) / (100.0f)) * 195.0f);
+          - x: 247
+            y: !lambda |-
+              auto &v = id(hist_humidity_samples); if (v.empty() || 22 < (24 - (int)v.size())) return 220; int k = 22 - (24 - (int)v.size()); float a = v[k]; if (a < 0.0f) a = 0.0f; if (a > 100.0f) a = 100.0f; return (int)(210.0f - ((a - 0.0f) / (100.0f)) * 195.0f);
+          - x: 258
+            y: !lambda |-
+              auto &v = id(hist_humidity_samples); if (v.empty() || 23 < (24 - (int)v.size())) return 220; int k = 23 - (24 - (int)v.size()); float a = v[k]; if (a < 0.0f) a = 0.0f; if (a > 100.0f) a = 100.0f; return (int)(210.0f - ((a - 0.0f) / (100.0f)) * 195.0f);
+    - logger.log:
+        format: "HA Humidity received: %.2f"
+        args: ["x"]
+    - lvgl.label.update:
+        id: humidity_value
+        text: !lambda |-
+          return str_sprintf("%.1f %%", x);
+    - lvgl.label.update:
+        id: control_humidity_value
+        text: !lambda |-
+          return str_sprintf("%.0f%%", x);
+    - lvgl.label.update:
+        id: control_humidity_status
+        text: !lambda |-
+          if (x >= 40.0f && x <= 60.0f) return "COMFORTABLE";
+          if (x < 40.0f) return "DRY";
+          return "HUMID";
+        text_color: !lambda |-
+          return (x >= 40.0f && x <= 60.0f) ? lv_color_hex(0x168A45) : lv_color_hex(0xD97706);
+    - lvgl.widget.update:
+        id: control_humidity_marker
+        x: !lambda |-
+          float v = x;
+          if (v < 0.0f) v = 0.0f;
+          if (v > 100.0f) v = 100.0f;
+          return (int)(372 + (v / 100.0f) * 266.0f - 8.0f);
+
+- platform: homeassistant
+  id: ha_co2
+  entity_id: sensor.ke_ting_senser_co2
+  internal: true
+  on_value:
+    then:
+    - lambda: |-
+        if (isnan(x)) return;
+        id(hmi_co2) = x;
+        id(hmi_co2_ready) = true;
+        auto &samples = id(hist_co2_samples);
+        samples.push_back(x);
+        if (samples.size() > 24) samples.erase(samples.begin());
+    - lvgl.line.update:
+        id: history_co2_curve
+        points:
+          - x: 0
+            y: !lambda |-
+              auto &v = id(hist_co2_samples); if (v.empty() || 0 < (24 - (int)v.size())) return 220; int k = 0 - (24 - (int)v.size()); float a = v[k]; if (a < 400.0f) a = 400.0f; if (a > 2000.0f) a = 2000.0f; return (int)(210.0f - ((a - 400.0f) / (1600.0f)) * 195.0f);
+          - x: 10
+            y: !lambda |-
+              auto &v = id(hist_co2_samples); if (v.empty() || 1 < (24 - (int)v.size())) return 220; int k = 1 - (24 - (int)v.size()); float a = v[k]; if (a < 400.0f) a = 400.0f; if (a > 2000.0f) a = 2000.0f; return (int)(210.0f - ((a - 400.0f) / (1600.0f)) * 195.0f);
+          - x: 20
+            y: !lambda |-
+              auto &v = id(hist_co2_samples); if (v.empty() || 2 < (24 - (int)v.size())) return 220; int k = 2 - (24 - (int)v.size()); float a = v[k]; if (a < 400.0f) a = 400.0f; if (a > 2000.0f) a = 2000.0f; return (int)(210.0f - ((a - 400.0f) / (1600.0f)) * 195.0f);
+          - x: 29
+            y: !lambda |-
+              auto &v = id(hist_co2_samples); if (v.empty() || 3 < (24 - (int)v.size())) return 220; int k = 3 - (24 - (int)v.size()); float a = v[k]; if (a < 400.0f) a = 400.0f; if (a > 2000.0f) a = 2000.0f; return (int)(210.0f - ((a - 400.0f) / (1600.0f)) * 195.0f);
+          - x: 39
+            y: !lambda |-
+              auto &v = id(hist_co2_samples); if (v.empty() || 4 < (24 - (int)v.size())) return 220; int k = 4 - (24 - (int)v.size()); float a = v[k]; if (a < 400.0f) a = 400.0f; if (a > 2000.0f) a = 2000.0f; return (int)(210.0f - ((a - 400.0f) / (1600.0f)) * 195.0f);
+          - x: 49
+            y: !lambda |-
+              auto &v = id(hist_co2_samples); if (v.empty() || 5 < (24 - (int)v.size())) return 220; int k = 5 - (24 - (int)v.size()); float a = v[k]; if (a < 400.0f) a = 400.0f; if (a > 2000.0f) a = 2000.0f; return (int)(210.0f - ((a - 400.0f) / (1600.0f)) * 195.0f);
+          - x: 59
+            y: !lambda |-
+              auto &v = id(hist_co2_samples); if (v.empty() || 6 < (24 - (int)v.size())) return 220; int k = 6 - (24 - (int)v.size()); float a = v[k]; if (a < 400.0f) a = 400.0f; if (a > 2000.0f) a = 2000.0f; return (int)(210.0f - ((a - 400.0f) / (1600.0f)) * 195.0f);
+          - x: 68
+            y: !lambda |-
+              auto &v = id(hist_co2_samples); if (v.empty() || 7 < (24 - (int)v.size())) return 220; int k = 7 - (24 - (int)v.size()); float a = v[k]; if (a < 400.0f) a = 400.0f; if (a > 2000.0f) a = 2000.0f; return (int)(210.0f - ((a - 400.0f) / (1600.0f)) * 195.0f);
+          - x: 78
+            y: !lambda |-
+              auto &v = id(hist_co2_samples); if (v.empty() || 8 < (24 - (int)v.size())) return 220; int k = 8 - (24 - (int)v.size()); float a = v[k]; if (a < 400.0f) a = 400.0f; if (a > 2000.0f) a = 2000.0f; return (int)(210.0f - ((a - 400.0f) / (1600.0f)) * 195.0f);
+          - x: 88
+            y: !lambda |-
+              auto &v = id(hist_co2_samples); if (v.empty() || 9 < (24 - (int)v.size())) return 220; int k = 9 - (24 - (int)v.size()); float a = v[k]; if (a < 400.0f) a = 400.0f; if (a > 2000.0f) a = 2000.0f; return (int)(210.0f - ((a - 400.0f) / (1600.0f)) * 195.0f);
+          - x: 98
+            y: !lambda |-
+              auto &v = id(hist_co2_samples); if (v.empty() || 10 < (24 - (int)v.size())) return 220; int k = 10 - (24 - (int)v.size()); float a = v[k]; if (a < 400.0f) a = 400.0f; if (a > 2000.0f) a = 2000.0f; return (int)(210.0f - ((a - 400.0f) / (1600.0f)) * 195.0f);
+          - x: 108
+            y: !lambda |-
+              auto &v = id(hist_co2_samples); if (v.empty() || 11 < (24 - (int)v.size())) return 220; int k = 11 - (24 - (int)v.size()); float a = v[k]; if (a < 400.0f) a = 400.0f; if (a > 2000.0f) a = 2000.0f; return (int)(210.0f - ((a - 400.0f) / (1600.0f)) * 195.0f);
+          - x: 117
+            y: !lambda |-
+              auto &v = id(hist_co2_samples); if (v.empty() || 12 < (24 - (int)v.size())) return 220; int k = 12 - (24 - (int)v.size()); float a = v[k]; if (a < 400.0f) a = 400.0f; if (a > 2000.0f) a = 2000.0f; return (int)(210.0f - ((a - 400.0f) / (1600.0f)) * 195.0f);
+          - x: 127
+            y: !lambda |-
+              auto &v = id(hist_co2_samples); if (v.empty() || 13 < (24 - (int)v.size())) return 220; int k = 13 - (24 - (int)v.size()); float a = v[k]; if (a < 400.0f) a = 400.0f; if (a > 2000.0f) a = 2000.0f; return (int)(210.0f - ((a - 400.0f) / (1600.0f)) * 195.0f);
+          - x: 137
+            y: !lambda |-
+              auto &v = id(hist_co2_samples); if (v.empty() || 14 < (24 - (int)v.size())) return 220; int k = 14 - (24 - (int)v.size()); float a = v[k]; if (a < 400.0f) a = 400.0f; if (a > 2000.0f) a = 2000.0f; return (int)(210.0f - ((a - 400.0f) / (1600.0f)) * 195.0f);
+          - x: 147
+            y: !lambda |-
+              auto &v = id(hist_co2_samples); if (v.empty() || 15 < (24 - (int)v.size())) return 220; int k = 15 - (24 - (int)v.size()); float a = v[k]; if (a < 400.0f) a = 400.0f; if (a > 2000.0f) a = 2000.0f; return (int)(210.0f - ((a - 400.0f) / (1600.0f)) * 195.0f);
+          - x: 157
+            y: !lambda |-
+              auto &v = id(hist_co2_samples); if (v.empty() || 16 < (24 - (int)v.size())) return 220; int k = 16 - (24 - (int)v.size()); float a = v[k]; if (a < 400.0f) a = 400.0f; if (a > 2000.0f) a = 2000.0f; return (int)(210.0f - ((a - 400.0f) / (1600.0f)) * 195.0f);
+          - x: 166
+            y: !lambda |-
+              auto &v = id(hist_co2_samples); if (v.empty() || 17 < (24 - (int)v.size())) return 220; int k = 17 - (24 - (int)v.size()); float a = v[k]; if (a < 400.0f) a = 400.0f; if (a > 2000.0f) a = 2000.0f; return (int)(210.0f - ((a - 400.0f) / (1600.0f)) * 195.0f);
+          - x: 176
+            y: !lambda |-
+              auto &v = id(hist_co2_samples); if (v.empty() || 18 < (24 - (int)v.size())) return 220; int k = 18 - (24 - (int)v.size()); float a = v[k]; if (a < 400.0f) a = 400.0f; if (a > 2000.0f) a = 2000.0f; return (int)(210.0f - ((a - 400.0f) / (1600.0f)) * 195.0f);
+          - x: 186
+            y: !lambda |-
+              auto &v = id(hist_co2_samples); if (v.empty() || 19 < (24 - (int)v.size())) return 220; int k = 19 - (24 - (int)v.size()); float a = v[k]; if (a < 400.0f) a = 400.0f; if (a > 2000.0f) a = 2000.0f; return (int)(210.0f - ((a - 400.0f) / (1600.0f)) * 195.0f);
+          - x: 196
+            y: !lambda |-
+              auto &v = id(hist_co2_samples); if (v.empty() || 20 < (24 - (int)v.size())) return 220; int k = 20 - (24 - (int)v.size()); float a = v[k]; if (a < 400.0f) a = 400.0f; if (a > 2000.0f) a = 2000.0f; return (int)(210.0f - ((a - 400.0f) / (1600.0f)) * 195.0f);
+          - x: 205
+            y: !lambda |-
+              auto &v = id(hist_co2_samples); if (v.empty() || 21 < (24 - (int)v.size())) return 220; int k = 21 - (24 - (int)v.size()); float a = v[k]; if (a < 400.0f) a = 400.0f; if (a > 2000.0f) a = 2000.0f; return (int)(210.0f - ((a - 400.0f) / (1600.0f)) * 195.0f);
+          - x: 215
+            y: !lambda |-
+              auto &v = id(hist_co2_samples); if (v.empty() || 22 < (24 - (int)v.size())) return 220; int k = 22 - (24 - (int)v.size()); float a = v[k]; if (a < 400.0f) a = 400.0f; if (a > 2000.0f) a = 2000.0f; return (int)(210.0f - ((a - 400.0f) / (1600.0f)) * 195.0f);
+          - x: 225
+            y: !lambda |-
+              auto &v = id(hist_co2_samples); if (v.empty() || 23 < (24 - (int)v.size())) return 220; int k = 23 - (24 - (int)v.size()); float a = v[k]; if (a < 400.0f) a = 400.0f; if (a > 2000.0f) a = 2000.0f; return (int)(210.0f - ((a - 400.0f) / (1600.0f)) * 195.0f);
+    - logger.log:
+        format: "HA CO2 received: %.1f"
+        args: ["x"]
+    - lvgl.label.update:
+        id: co2_value
+        text: !lambda |-
+          return str_sprintf("%.0f ppm", x);
+    - lvgl.label.update:
+        id: control_co2_value
+        text: !lambda |-
+          return str_sprintf("%.0f", x);
+    - lvgl.label.update:
+        id: control_air_quality_status
+        text: !lambda |-
+          if (x < 1000.0f) return "GOOD";
+          if (x < 1500.0f) return "FAIR";
+          return "POOR";
+        text_color: !lambda |-
+          if (x < 1000.0f) return lv_color_hex(0x168A45);
+          if (x < 1500.0f) return lv_color_hex(0xD97706);
+          return lv_color_hex(0xDC2626);
+
+- platform: homeassistant
+  id: ha_voc_index
+  entity_id: sensor.ke_ting_senser_voc_index
+  internal: true
+  on_value:
+    then:
+    - lambda: |-
+        if (isnan(x)) return;
+        id(hmi_voc) = x;
+        id(hmi_voc_ready) = true;
+        auto &samples = id(hist_voc_samples);
+        samples.push_back(x);
+        if (samples.size() > 24) samples.erase(samples.begin());
+    - lvgl.line.update:
+        id: history_voc_curve
+        points:
+          - x: 0
+            y: !lambda |-
+              auto &v = id(hist_voc_samples); if (v.empty() || 0 < (24 - (int)v.size())) return 220; int k = 0 - (24 - (int)v.size()); float a = v[k]; if (a < 0.0f) a = 0.0f; if (a > 500.0f) a = 500.0f; return (int)(210.0f - ((a - 0.0f) / (500.0f)) * 195.0f);
+          - x: 10
+            y: !lambda |-
+              auto &v = id(hist_voc_samples); if (v.empty() || 1 < (24 - (int)v.size())) return 220; int k = 1 - (24 - (int)v.size()); float a = v[k]; if (a < 0.0f) a = 0.0f; if (a > 500.0f) a = 500.0f; return (int)(210.0f - ((a - 0.0f) / (500.0f)) * 195.0f);
+          - x: 20
+            y: !lambda |-
+              auto &v = id(hist_voc_samples); if (v.empty() || 2 < (24 - (int)v.size())) return 220; int k = 2 - (24 - (int)v.size()); float a = v[k]; if (a < 0.0f) a = 0.0f; if (a > 500.0f) a = 500.0f; return (int)(210.0f - ((a - 0.0f) / (500.0f)) * 195.0f);
+          - x: 29
+            y: !lambda |-
+              auto &v = id(hist_voc_samples); if (v.empty() || 3 < (24 - (int)v.size())) return 220; int k = 3 - (24 - (int)v.size()); float a = v[k]; if (a < 0.0f) a = 0.0f; if (a > 500.0f) a = 500.0f; return (int)(210.0f - ((a - 0.0f) / (500.0f)) * 195.0f);
+          - x: 39
+            y: !lambda |-
+              auto &v = id(hist_voc_samples); if (v.empty() || 4 < (24 - (int)v.size())) return 220; int k = 4 - (24 - (int)v.size()); float a = v[k]; if (a < 0.0f) a = 0.0f; if (a > 500.0f) a = 500.0f; return (int)(210.0f - ((a - 0.0f) / (500.0f)) * 195.0f);
+          - x: 49
+            y: !lambda |-
+              auto &v = id(hist_voc_samples); if (v.empty() || 5 < (24 - (int)v.size())) return 220; int k = 5 - (24 - (int)v.size()); float a = v[k]; if (a < 0.0f) a = 0.0f; if (a > 500.0f) a = 500.0f; return (int)(210.0f - ((a - 0.0f) / (500.0f)) * 195.0f);
+          - x: 59
+            y: !lambda |-
+              auto &v = id(hist_voc_samples); if (v.empty() || 6 < (24 - (int)v.size())) return 220; int k = 6 - (24 - (int)v.size()); float a = v[k]; if (a < 0.0f) a = 0.0f; if (a > 500.0f) a = 500.0f; return (int)(210.0f - ((a - 0.0f) / (500.0f)) * 195.0f);
+          - x: 68
+            y: !lambda |-
+              auto &v = id(hist_voc_samples); if (v.empty() || 7 < (24 - (int)v.size())) return 220; int k = 7 - (24 - (int)v.size()); float a = v[k]; if (a < 0.0f) a = 0.0f; if (a > 500.0f) a = 500.0f; return (int)(210.0f - ((a - 0.0f) / (500.0f)) * 195.0f);
+          - x: 78
+            y: !lambda |-
+              auto &v = id(hist_voc_samples); if (v.empty() || 8 < (24 - (int)v.size())) return 220; int k = 8 - (24 - (int)v.size()); float a = v[k]; if (a < 0.0f) a = 0.0f; if (a > 500.0f) a = 500.0f; return (int)(210.0f - ((a - 0.0f) / (500.0f)) * 195.0f);
+          - x: 88
+            y: !lambda |-
+              auto &v = id(hist_voc_samples); if (v.empty() || 9 < (24 - (int)v.size())) return 220; int k = 9 - (24 - (int)v.size()); float a = v[k]; if (a < 0.0f) a = 0.0f; if (a > 500.0f) a = 500.0f; return (int)(210.0f - ((a - 0.0f) / (500.0f)) * 195.0f);
+          - x: 98
+            y: !lambda |-
+              auto &v = id(hist_voc_samples); if (v.empty() || 10 < (24 - (int)v.size())) return 220; int k = 10 - (24 - (int)v.size()); float a = v[k]; if (a < 0.0f) a = 0.0f; if (a > 500.0f) a = 500.0f; return (int)(210.0f - ((a - 0.0f) / (500.0f)) * 195.0f);
+          - x: 108
+            y: !lambda |-
+              auto &v = id(hist_voc_samples); if (v.empty() || 11 < (24 - (int)v.size())) return 220; int k = 11 - (24 - (int)v.size()); float a = v[k]; if (a < 0.0f) a = 0.0f; if (a > 500.0f) a = 500.0f; return (int)(210.0f - ((a - 0.0f) / (500.0f)) * 195.0f);
+          - x: 117
+            y: !lambda |-
+              auto &v = id(hist_voc_samples); if (v.empty() || 12 < (24 - (int)v.size())) return 220; int k = 12 - (24 - (int)v.size()); float a = v[k]; if (a < 0.0f) a = 0.0f; if (a > 500.0f) a = 500.0f; return (int)(210.0f - ((a - 0.0f) / (500.0f)) * 195.0f);
+          - x: 127
+            y: !lambda |-
+              auto &v = id(hist_voc_samples); if (v.empty() || 13 < (24 - (int)v.size())) return 220; int k = 13 - (24 - (int)v.size()); float a = v[k]; if (a < 0.0f) a = 0.0f; if (a > 500.0f) a = 500.0f; return (int)(210.0f - ((a - 0.0f) / (500.0f)) * 195.0f);
+          - x: 137
+            y: !lambda |-
+              auto &v = id(hist_voc_samples); if (v.empty() || 14 < (24 - (int)v.size())) return 220; int k = 14 - (24 - (int)v.size()); float a = v[k]; if (a < 0.0f) a = 0.0f; if (a > 500.0f) a = 500.0f; return (int)(210.0f - ((a - 0.0f) / (500.0f)) * 195.0f);
+          - x: 147
+            y: !lambda |-
+              auto &v = id(hist_voc_samples); if (v.empty() || 15 < (24 - (int)v.size())) return 220; int k = 15 - (24 - (int)v.size()); float a = v[k]; if (a < 0.0f) a = 0.0f; if (a > 500.0f) a = 500.0f; return (int)(210.0f - ((a - 0.0f) / (500.0f)) * 195.0f);
+          - x: 157
+            y: !lambda |-
+              auto &v = id(hist_voc_samples); if (v.empty() || 16 < (24 - (int)v.size())) return 220; int k = 16 - (24 - (int)v.size()); float a = v[k]; if (a < 0.0f) a = 0.0f; if (a > 500.0f) a = 500.0f; return (int)(210.0f - ((a - 0.0f) / (500.0f)) * 195.0f);
+          - x: 166
+            y: !lambda |-
+              auto &v = id(hist_voc_samples); if (v.empty() || 17 < (24 - (int)v.size())) return 220; int k = 17 - (24 - (int)v.size()); float a = v[k]; if (a < 0.0f) a = 0.0f; if (a > 500.0f) a = 500.0f; return (int)(210.0f - ((a - 0.0f) / (500.0f)) * 195.0f);
+          - x: 176
+            y: !lambda |-
+              auto &v = id(hist_voc_samples); if (v.empty() || 18 < (24 - (int)v.size())) return 220; int k = 18 - (24 - (int)v.size()); float a = v[k]; if (a < 0.0f) a = 0.0f; if (a > 500.0f) a = 500.0f; return (int)(210.0f - ((a - 0.0f) / (500.0f)) * 195.0f);
+          - x: 186
+            y: !lambda |-
+              auto &v = id(hist_voc_samples); if (v.empty() || 19 < (24 - (int)v.size())) return 220; int k = 19 - (24 - (int)v.size()); float a = v[k]; if (a < 0.0f) a = 0.0f; if (a > 500.0f) a = 500.0f; return (int)(210.0f - ((a - 0.0f) / (500.0f)) * 195.0f);
+          - x: 196
+            y: !lambda |-
+              auto &v = id(hist_voc_samples); if (v.empty() || 20 < (24 - (int)v.size())) return 220; int k = 20 - (24 - (int)v.size()); float a = v[k]; if (a < 0.0f) a = 0.0f; if (a > 500.0f) a = 500.0f; return (int)(210.0f - ((a - 0.0f) / (500.0f)) * 195.0f);
+          - x: 205
+            y: !lambda |-
+              auto &v = id(hist_voc_samples); if (v.empty() || 21 < (24 - (int)v.size())) return 220; int k = 21 - (24 - (int)v.size()); float a = v[k]; if (a < 0.0f) a = 0.0f; if (a > 500.0f) a = 500.0f; return (int)(210.0f - ((a - 0.0f) / (500.0f)) * 195.0f);
+          - x: 215
+            y: !lambda |-
+              auto &v = id(hist_voc_samples); if (v.empty() || 22 < (24 - (int)v.size())) return 220; int k = 22 - (24 - (int)v.size()); float a = v[k]; if (a < 0.0f) a = 0.0f; if (a > 500.0f) a = 500.0f; return (int)(210.0f - ((a - 0.0f) / (500.0f)) * 195.0f);
+          - x: 225
+            y: !lambda |-
+              auto &v = id(hist_voc_samples); if (v.empty() || 23 < (24 - (int)v.size())) return 220; int k = 23 - (24 - (int)v.size()); float a = v[k]; if (a < 0.0f) a = 0.0f; if (a > 500.0f) a = 500.0f; return (int)(210.0f - ((a - 0.0f) / (500.0f)) * 195.0f);
+    - logger.log:
+        format: "HA VOC Index received: %.1f"
+        args: ["x"]
+    - lvgl.label.update:
+        id: tvoc_value
+        text: !lambda |-
+          return str_sprintf("VOC %.0f", x);
+    - lvgl.label.update:
+        id: control_tvoc_value
+        text: !lambda |-
+          return str_sprintf("%.0f", x);
+
+- platform: homeassistant
+  id: ha_nox_index
+  entity_id: sensor.ke_ting_senser_nox_index
+  internal: true
+  on_value:
+    then:
+    - lambda: |-
+        if (isnan(x)) return;
+        id(hmi_nox) = x;
+        id(hmi_nox_ready) = true;
+
+
+
+# ==========================================
+# HMI LED RING - MATCH XIAO ESP32-C3 LOGIC
+# The HMI calculates the same 4-zone LED count locally from HA sensors.
+# It does not drive the physical WS2812 ring.
+# ==========================================
+
+
+# HOME ASSISTANT HVAC MODE / FAN / HUMIDIFIER / INDICATOR FEEDBACK
+# WEATHER.JIA - CURRENT WEATHER DATA
+- platform: homeassistant
+  id: ha_outdoor_temperature
+  entity_id: weather.jia
+  attribute: temperature
+  internal: true
+  on_value:
+    then:
+      - lvgl.label.update:
+          id: weather_current_temp
+          text: !lambda |-
+              return str_sprintf("%.1f °C", x);
+      - lvgl.label.update:
+          id: weather_header_temp
+          text: !lambda |-
+            return str_sprintf("%.1f °C", x);
+- platform: homeassistant
+  id: ha_wind_speed
+  entity_id: weather.jia
+  attribute: wind_speed
+  internal: true
+  on_value:
+    then:
+      - lvgl.label.update:
+          id: weather_wind_speed
+          text: !lambda |-
+              return str_sprintf("Wind: %.1f", x);
+- platform: homeassistant
+  id: ha_precipitation
+  entity_id: weather.jia
+  attribute: precipitation
+  internal: true
+  on_value:
+    then:
+      - lvgl.label.update:
+          id: weather_rain
+          text: !lambda |-
+              return str_sprintf("Rain: %.1f mm", x);
+- platform: homeassistant
+  id: ha_apparent_temperature
+  entity_id: weather.jia
+  attribute: apparent_temperature
+  internal: true
+  on_value:
+    then:
+      - lvgl.label.update:
+          id: weather_feels_like
+          text: !lambda |-
+            return str_sprintf("Feels like: %.1f °C", x);
+
+# HISTORY STATISTICS FROM HOME ASSISTANT (24h / 2d / 7d)
+- platform: homeassistant
+  id: ha_hist_temp_min_24h
+  entity_id: sensor.hmi_temp_min_24h
+  internal: true
+  on_value:
+    then:
+      - lambda: |-
+          if (isnan(x)) return;
+          id(hist_temp_min_24h) = x;
+          if (id(history_range) == 0) {
+            char buf[32];
+            snprintf(buf, sizeof(buf), "%.1f°C", x);
+            lv_label_set_text(id(history_temp_min_value), buf);
+          }
+- platform: homeassistant
+  id: ha_hist_temp_min_2d
+  entity_id: sensor.hmi_temp_min_2d
+  internal: true
+  on_value:
+    then:
+      - lambda: |-
+          if (isnan(x)) return;
+          id(hist_temp_min_2d) = x;
+          if (id(history_range) == 1) {
+            char buf[32];
+            snprintf(buf, sizeof(buf), "%.1f°C", x);
+            lv_label_set_text(id(history_temp_min_value), buf);
+          }
+- platform: homeassistant
+  id: ha_hist_temp_min_7d
+  entity_id: sensor.hmi_temp_min_7d
+  internal: true
+  on_value:
+    then:
+      - lambda: |-
+          if (isnan(x)) return;
+          id(hist_temp_min_7d) = x;
+          if (id(history_range) == 2) {
+            char buf[32];
+            snprintf(buf, sizeof(buf), "%.1f°C", x);
+            lv_label_set_text(id(history_temp_min_value), buf);
+          }
+- platform: homeassistant
+  id: ha_hist_temp_mean_24h
+  entity_id: sensor.hmi_temp_mean_24h
+  internal: true
+  on_value:
+    then:
+      - lambda: |-
+          if (isnan(x)) return;
+          id(hist_temp_mean_24h) = x;
+          if (id(history_range) == 0) {
+            char buf[32];
+            snprintf(buf, sizeof(buf), "%.1f°C", x);
+            lv_label_set_text(id(history_temp_mean_value), buf);
+          }
+- platform: homeassistant
+  id: ha_hist_temp_mean_2d
+  entity_id: sensor.hmi_temp_mean_2d
+  internal: true
+  on_value:
+    then:
+      - lambda: |-
+          if (isnan(x)) return;
+          id(hist_temp_mean_2d) = x;
+          if (id(history_range) == 1) {
+            char buf[32];
+            snprintf(buf, sizeof(buf), "%.1f°C", x);
+            lv_label_set_text(id(history_temp_mean_value), buf);
+          }
+- platform: homeassistant
+  id: ha_hist_temp_mean_7d
+  entity_id: sensor.hmi_temp_mean_7d
+  internal: true
+  on_value:
+    then:
+      - lambda: |-
+          if (isnan(x)) return;
+          id(hist_temp_mean_7d) = x;
+          if (id(history_range) == 2) {
+            char buf[32];
+            snprintf(buf, sizeof(buf), "%.1f°C", x);
+            lv_label_set_text(id(history_temp_mean_value), buf);
+          }
+- platform: homeassistant
+  id: ha_hist_temp_max_24h
+  entity_id: sensor.hmi_temp_max_24h
+  internal: true
+  on_value:
+    then:
+      - lambda: |-
+          if (isnan(x)) return;
+          id(hist_temp_max_24h) = x;
+          if (id(history_range) == 0) {
+            char buf[32];
+            snprintf(buf, sizeof(buf), "%.1f°C", x);
+            lv_label_set_text(id(history_temp_max_value), buf);
+          }
+- platform: homeassistant
+  id: ha_hist_temp_max_2d
+  entity_id: sensor.hmi_temp_max_2d
+  internal: true
+  on_value:
+    then:
+      - lambda: |-
+          if (isnan(x)) return;
+          id(hist_temp_max_2d) = x;
+          if (id(history_range) == 1) {
+            char buf[32];
+            snprintf(buf, sizeof(buf), "%.1f°C", x);
+            lv_label_set_text(id(history_temp_max_value), buf);
+          }
+- platform: homeassistant
+  id: ha_hist_temp_max_7d
+  entity_id: sensor.hmi_temp_max_7d
+  internal: true
+  on_value:
+    then:
+      - lambda: |-
+          if (isnan(x)) return;
+          id(hist_temp_max_7d) = x;
+          if (id(history_range) == 2) {
+            char buf[32];
+            snprintf(buf, sizeof(buf), "%.1f°C", x);
+            lv_label_set_text(id(history_temp_max_value), buf);
+          }
+- platform: homeassistant
+  id: ha_hist_humidity_min_24h
+  entity_id: sensor.hmi_humidity_min_24h
+  internal: true
+  on_value:
+    then:
+      - lambda: |-
+          if (isnan(x)) return;
+          id(hist_humidity_min_24h) = x;
+          if (id(history_range) == 0) {
+            char buf[32];
+            snprintf(buf, sizeof(buf), "%.1f%%", x);
+            lv_label_set_text(id(history_humidity_min_value), buf);
+          }
+- platform: homeassistant
+  id: ha_hist_humidity_min_2d
+  entity_id: sensor.hmi_humidity_min_2d
+  internal: true
+  on_value:
+    then:
+      - lambda: |-
+          if (isnan(x)) return;
+          id(hist_humidity_min_2d) = x;
+          if (id(history_range) == 1) {
+            char buf[32];
+            snprintf(buf, sizeof(buf), "%.1f%%", x);
+            lv_label_set_text(id(history_humidity_min_value), buf);
+          }
+- platform: homeassistant
+  id: ha_hist_humidity_min_7d
+  entity_id: sensor.hmi_humidity_min_7d
+  internal: true
+  on_value:
+    then:
+      - lambda: |-
+          if (isnan(x)) return;
+          id(hist_humidity_min_7d) = x;
+          if (id(history_range) == 2) {
+            char buf[32];
+            snprintf(buf, sizeof(buf), "%.1f%%", x);
+            lv_label_set_text(id(history_humidity_min_value), buf);
+          }
+- platform: homeassistant
+  id: ha_hist_humidity_mean_24h
+  entity_id: sensor.hmi_humidity_mean_24h
+  internal: true
+  on_value:
+    then:
+      - lambda: |-
+          if (isnan(x)) return;
+          id(hist_humidity_mean_24h) = x;
+          if (id(history_range) == 0) {
+            char buf[32];
+            snprintf(buf, sizeof(buf), "%.1f%%", x);
+            lv_label_set_text(id(history_humidity_mean_value), buf);
+          }
+- platform: homeassistant
+  id: ha_hist_humidity_mean_2d
+  entity_id: sensor.hmi_humidity_mean_2d
+  internal: true
+  on_value:
+    then:
+      - lambda: |-
+          if (isnan(x)) return;
+          id(hist_humidity_mean_2d) = x;
+          if (id(history_range) == 1) {
+            char buf[32];
+            snprintf(buf, sizeof(buf), "%.1f%%", x);
+            lv_label_set_text(id(history_humidity_mean_value), buf);
+          }
+- platform: homeassistant
+  id: ha_hist_humidity_mean_7d
+  entity_id: sensor.hmi_humidity_mean_7d
+  internal: true
+  on_value:
+    then:
+      - lambda: |-
+          if (isnan(x)) return;
+          id(hist_humidity_mean_7d) = x;
+          if (id(history_range) == 2) {
+            char buf[32];
+            snprintf(buf, sizeof(buf), "%.1f%%", x);
+            lv_label_set_text(id(history_humidity_mean_value), buf);
+          }
+- platform: homeassistant
+  id: ha_hist_humidity_max_24h
+  entity_id: sensor.hmi_humidity_max_24h
+  internal: true
+  on_value:
+    then:
+      - lambda: |-
+          if (isnan(x)) return;
+          id(hist_humidity_max_24h) = x;
+          if (id(history_range) == 0) {
+            char buf[32];
+            snprintf(buf, sizeof(buf), "%.1f%%", x);
+            lv_label_set_text(id(history_humidity_max_value), buf);
+          }
+- platform: homeassistant
+  id: ha_hist_humidity_max_2d
+  entity_id: sensor.hmi_humidity_max_2d
+  internal: true
+  on_value:
+    then:
+      - lambda: |-
+          if (isnan(x)) return;
+          id(hist_humidity_max_2d) = x;
+          if (id(history_range) == 1) {
+            char buf[32];
+            snprintf(buf, sizeof(buf), "%.1f%%", x);
+            lv_label_set_text(id(history_humidity_max_value), buf);
+          }
+- platform: homeassistant
+  id: ha_hist_humidity_max_7d
+  entity_id: sensor.hmi_humidity_max_7d
+  internal: true
+  on_value:
+    then:
+      - lambda: |-
+          if (isnan(x)) return;
+          id(hist_humidity_max_7d) = x;
+          if (id(history_range) == 2) {
+            char buf[32];
+            snprintf(buf, sizeof(buf), "%.1f%%", x);
+            lv_label_set_text(id(history_humidity_max_value), buf);
+          }
+- platform: homeassistant
+  id: ha_hist_co2_mean_24h
+  entity_id: sensor.hmi_co2_mean_24h
+  internal: true
+  on_value:
+    then:
+      - lambda: |-
+          if (isnan(x)) return;
+          id(hist_co2_mean_24h) = x;
+          if (id(history_range) == 0) {
+            char buf[32];
+            snprintf(buf, sizeof(buf), "%.0fppm", x);
+            lv_label_set_text(id(history_co2_mean_value), buf);
+          }
+- platform: homeassistant
+  id: ha_hist_co2_mean_2d
+  entity_id: sensor.hmi_co2_mean_2d
+  internal: true
+  on_value:
+    then:
+      - lambda: |-
+          if (isnan(x)) return;
+          id(hist_co2_mean_2d) = x;
+          if (id(history_range) == 1) {
+            char buf[32];
+            snprintf(buf, sizeof(buf), "%.0fppm", x);
+            lv_label_set_text(id(history_co2_mean_value), buf);
+          }
+- platform: homeassistant
+  id: ha_hist_co2_mean_7d
+  entity_id: sensor.hmi_co2_mean_7d
+  internal: true
+  on_value:
+    then:
+      - lambda: |-
+          if (isnan(x)) return;
+          id(hist_co2_mean_7d) = x;
+          if (id(history_range) == 2) {
+            char buf[32];
+            snprintf(buf, sizeof(buf), "%.0fppm", x);
+            lv_label_set_text(id(history_co2_mean_value), buf);
+          }
+- platform: homeassistant
+  id: ha_hist_tvoc_mean_24h
+  entity_id: sensor.hmi_tvoc_mean_24h
+  internal: true
+  on_value:
+    then:
+      - lambda: |-
+          if (isnan(x)) return;
+          id(hist_tvoc_mean_24h) = x;
+          if (id(history_range) == 0) {
+            char buf[32];
+            snprintf(buf, sizeof(buf), "%.0f index", x);
+            lv_label_set_text(id(history_tvoc_mean_value), buf);
+          }
+- platform: homeassistant
+  id: ha_hist_tvoc_mean_2d
+  entity_id: sensor.hmi_tvoc_mean_2d
+  internal: true
+  on_value:
+    then:
+      - lambda: |-
+          if (isnan(x)) return;
+          id(hist_tvoc_mean_2d) = x;
+          if (id(history_range) == 1) {
+            char buf[32];
+            snprintf(buf, sizeof(buf), "%.0f index", x);
+            lv_label_set_text(id(history_tvoc_mean_value), buf);
+          }
+- platform: homeassistant
+  id: ha_hist_tvoc_mean_7d
+  entity_id: sensor.hmi_tvoc_mean_7d
+  internal: true
+  on_value:
+    then:
+      - lambda: |-
+          if (isnan(x)) return;
+          id(hist_tvoc_mean_7d) = x;
+          if (id(history_range) == 2) {
+            char buf[32];
+            snprintf(buf, sizeof(buf), "%.0f index", x);
+            lv_label_set_text(id(history_tvoc_mean_value), buf);
+          }
+
+binary_sensor:
+  - platform: homeassistant
+    id: ha_auto_mode_state
+    entity_id: switch.esp32_c6_hvac_controller_hvac_auto_mode
+    internal: true
+    on_state:
+      then:
+        - if:
+            condition:
+              lambda: 'return x;'
+            then:
+              - lvgl.image.update: {id: dashboard_auto_button, src: btn_auto_on}
+              - lvgl.image.update: {id: dashboard_manual_button, src: btn_manual_off}
+              - lvgl.image.update: {id: control_auto_button, src: btn_auto_on}
+              - lvgl.image.update: {id: control_manual_button, src: btn_manual_off}
+            else:
+              - lvgl.image.update: {id: dashboard_auto_button, src: btn_auto_off}
+              - lvgl.image.update: {id: dashboard_manual_button, src: btn_manual_on}
+              - lvgl.image.update: {id: control_auto_button, src: btn_auto_off}
+              - lvgl.image.update: {id: control_manual_button, src: btn_manual_on}
+  - platform: homeassistant
+    id: ha_humidifier_state
+    entity_id: switch.esp32_c6_hvac_controller_hvac_mist_maker
+    internal: true
+    on_state:
+      then:
+        - if:
+            condition:
+              lambda: 'return x;'
+            then:
+              - lvgl.image.update: {id: humidifier_button, src: humidifier_on}
+              - lvgl.label.update:
+                  id: humidifier_state_label
+                  text: "ON"
+                  text_color: 0x168A45
+              - lvgl.label.update:
+                  id: control_humidifier_output_label
+                  text: "ON"
+                  text_color: 0x168A45
+            else:
+              - lvgl.image.update: {id: humidifier_button, src: humidifier_off}
+              - lvgl.label.update:
+                  id: humidifier_state_label
+                  text: "OFF"
+                  text_color: 0x64748B
+              - lvgl.label.update:
+                  id: control_humidifier_output_label
+                  text: "OFF"
+                  text_color: 0x64748B
+  - platform: homeassistant
+    id: ha_indicator_light_state
+    entity_id: switch.indicator_light_indicator
+    internal: true
+    on_state:
+      then:
+        - lambda: 'id(hmi_indicator_enabled) = x;'
+        - script.execute: hmi_update_led_ring
+
+text_sensor:
+  - platform: homeassistant
+    id: ha_daily_forecast_json
+    entity_id: sensor.weather_forecast_daily
+    attribute: forecast
+    internal: true
+    on_value:
+      then:
+        - lambda: |-
+            auto doc = json::parse_json(x);
+            if (!doc.is<JsonArray>()) {
+              ESP_LOGW("weather", "Forecast JSON is not an array");
+              return;
+            }
+            JsonArray forecast = doc.as<JsonArray>();
+            int i = 0;
+            for (JsonObject item : forecast) {
+                if (i >= 7) break;
+                std::string dt = item["datetime"] | "";
+                std::string day = dt.size() >= 10 ? dt.substr(5, 5) : "Day";
+                std::string cond = item["condition"] | "";
+                std::string icon = "CLD";
+                if (cond.find("sunny") != std::string::npos || cond.find("clear") != std::string::npos) icon = "SUN";
+                else if (cond.find("rain") != std::string::npos || cond.find("pour") != std::string::npos || cond.find("lightning") != std::string::npos) icon = "RAIN";
+                else if (cond.find("snow") != std::string::npos || cond.find("hail") != std::string::npos) icon = "SNOW";
+                else if (cond.find("fog") != std::string::npos || cond.find("mist") != std::string::npos) icon = "FOG";
+                char high[20], low[20];
+                snprintf(high, sizeof(high), "H %.0f°", (double)(item["temperature"] | NAN));
+                snprintf(low, sizeof(low), "L %.0f°", (double)(item["templow"] | NAN));
+                switch (i) {
+                  case 0: lv_label_set_text(id(weather_day_0_name), day.c_str()); lv_label_set_text(id(weather_day_0_icon), icon.c_str()); lv_label_set_text(id(weather_day_0_high), high); lv_label_set_text(id(weather_day_0_low), low); break;
+                  case 1: lv_label_set_text(id(weather_day_1_name), day.c_str()); lv_label_set_text(id(weather_day_1_icon), icon.c_str()); lv_label_set_text(id(weather_day_1_high), high); lv_label_set_text(id(weather_day_1_low), low); break;
+                  case 2: lv_label_set_text(id(weather_day_2_name), day.c_str()); lv_label_set_text(id(weather_day_2_icon), icon.c_str()); lv_label_set_text(id(weather_day_2_high), high); lv_label_set_text(id(weather_day_2_low), low); break;
+                  case 3: lv_label_set_text(id(weather_day_3_name), day.c_str()); lv_label_set_text(id(weather_day_3_icon), icon.c_str()); lv_label_set_text(id(weather_day_3_high), high); lv_label_set_text(id(weather_day_3_low), low); break;
+                  case 4: lv_label_set_text(id(weather_day_4_name), day.c_str()); lv_label_set_text(id(weather_day_4_icon), icon.c_str()); lv_label_set_text(id(weather_day_4_high), high); lv_label_set_text(id(weather_day_4_low), low); break;
+                  case 5: lv_label_set_text(id(weather_day_5_name), day.c_str()); lv_label_set_text(id(weather_day_5_icon), icon.c_str()); lv_label_set_text(id(weather_day_5_high), high); lv_label_set_text(id(weather_day_5_low), low); break;
+                  case 6: lv_label_set_text(id(weather_day_6_name), day.c_str()); lv_label_set_text(id(weather_day_6_icon), icon.c_str()); lv_label_set_text(id(weather_day_6_high), high); lv_label_set_text(id(weather_day_6_low), low); break;
+                }
+              i++;
+            }
+  - platform: homeassistant
+    id: ha_weather_condition
+    entity_id: weather.jia
+    internal: true
+    on_value:
+      then:
+        - lvgl.label.update:
+            id: weather_condition
+            text: !lambda |-
+              return x.c_str();
+        - lvgl.label.update:
+            id: weather_header_condition
+            text: !lambda |-
+              return x.c_str();
+        - lvgl.label.update:
+            id: top_weather_value
+            text: !lambda |-
+              return str_sprintf("Winnipeg | %s", x.c_str());
+  - platform: homeassistant
+    id: ha_manual_fan_speed
+    entity_id: select.esp32_c6_hvac_controller_hvac_manual_fan_speed
+    internal: true
+    on_value:
+      then:
+        - if:
+            condition:
+              lambda: 'return x == "LOW";'
+            then:
+              - lvgl.image.update: {id: control_fan_low_button, src: fan_low_on}
+              - lvgl.image.update: {id: control_fan_medium_button, src: fan_medium_off}
+              - lvgl.image.update: {id: control_fan_high_button, src: fan_high_off}
+              - lvgl.label.update:
+                  id: control_fan_state_label
+                  text: "LOW"
+                  text_color: 0x168A45
+            else:
+              - if:
+                  condition:
+                    lambda: 'return x == "MID";'
+                  then:
+                    - lvgl.image.update: {id: control_fan_low_button, src: fan_low_off}
+                    - lvgl.image.update: {id: control_fan_medium_button, src: fan_medium_on}
+                    - lvgl.image.update: {id: control_fan_high_button, src: fan_high_off}
+                    - lvgl.label.update:
+                        id: control_fan_state_label
+                        text: "MID"
+                        text_color: 0x168A45
+                  else:
+                    - if:
+                        condition:
+                          lambda: 'return x == "HIGH";'
+                        then:
+                          - lvgl.image.update: {id: control_fan_low_button, src: fan_low_off}
+                          - lvgl.image.update: {id: control_fan_medium_button, src: fan_medium_off}
+                          - lvgl.image.update: {id: control_fan_high_button, src: fan_high_on}
+                          - lvgl.label.update:
+                              id: control_fan_state_label
+                              text: "HIGH"
+                              text_color: 0x168A45
+                        else:
+                          - lvgl.image.update: {id: control_fan_low_button, src: fan_low_off}
+                          - lvgl.image.update: {id: control_fan_medium_button, src: fan_medium_off}
+                          - lvgl.image.update: {id: control_fan_high_button, src: fan_high_off}
+                          - lvgl.label.update:
+                              id: control_fan_state_label
+                              text: "CLOSE"
+                              text_color: 0x64748B
+
+script:
+  - id: hmi_check_emergency
+    mode: restart
+    then:
+      - lambda: |-
+          if (!id(hmi_co2_ready) || !id(hmi_voc_ready) || !id(hmi_nox_ready)) {
+            id(hmi_recovery_start_ms) = 0;
+            return;
+          }
+
+          if (id(hmi_co2) >= 1500.0f) id(hmi_co2_emergency) = true;
+          if (id(hmi_voc) >= 300.0f) id(hmi_voc_emergency) = true;
+          if (id(hmi_nox) >= 100.0f) id(hmi_nox_emergency) = true;
+
+          bool any_latched = id(hmi_co2_emergency) ||
+                             id(hmi_voc_emergency) ||
+                             id(hmi_nox_emergency);
+
+          if (!any_latched) {
+            id(hmi_emergency_mode) = false;
+            id(hmi_recovery_start_ms) = 0;
+          } else {
+            bool all_safe = id(hmi_co2) <= 1400.0f &&
+                            id(hmi_voc) <= 280.0f &&
+                            id(hmi_nox) <= 90.0f;
+            if (all_safe) {
+              if (id(hmi_recovery_start_ms) == 0)
+                id(hmi_recovery_start_ms) = millis();
+
+              if ((uint32_t)(millis() - id(hmi_recovery_start_ms)) >= 30000UL) {
+                id(hmi_co2_emergency) = false;
+                id(hmi_voc_emergency) = false;
+                id(hmi_nox_emergency) = false;
+                id(hmi_emergency_mode) = false;
+                id(hmi_recovery_start_ms) = 0;
+              } else {
+                id(hmi_emergency_mode) = true;
+              }
+            } else {
+              id(hmi_recovery_start_ms) = 0;
+              id(hmi_emergency_mode) = true;
+            }
+          }
+
+  - id: hmi_toggle_night_mode
+    mode: restart
+    then:
+      - lambda: |-
+          id(hmi_night_mode) = !id(hmi_night_mode);
+      - if:
+          condition:
+            lambda: 'return id(hmi_night_mode);'
+          then:
+            - lvgl.image.update: {id: dashboard_night_button, src: btn_night_on}
+            - lvgl.image.update: {id: control_night_button, src: btn_night_on}
+          else:
+            - lvgl.image.update: {id: dashboard_night_button, src: btn_night_off}
+            - lvgl.image.update: {id: control_night_button, src: btn_night_off}
+      - script.execute: hmi_update_led_ring
+
+  - id: hmi_set_hvac_auto
+    mode: restart
+    then:
+      - homeassistant.service:
+          service: switch.turn_on
+          data:
+            entity_id: switch.esp32_c6_hvac_controller_hvac_auto_mode
+
+  - id: hmi_set_hvac_manual
+    mode: restart
+    then:
+      - homeassistant.service:
+          service: switch.turn_off
+          data:
+            entity_id: switch.esp32_c6_hvac_controller_hvac_auto_mode
+
+  - id: hmi_set_fan_low
+    mode: restart
+    then:
+      - if:
+          condition:
+            lambda: 'return id(ha_manual_fan_speed).state == "LOW";'
+          then:
+            - homeassistant.service:
+                service: select.select_option
+                data:
+                  entity_id: select.esp32_c6_hvac_controller_hvac_manual_fan_speed
+                  option: CLOSE
+          else:
+            - homeassistant.service:
+                service: select.select_option
+                data:
+                  entity_id: select.esp32_c6_hvac_controller_hvac_manual_fan_speed
+                  option: LOW
+
+  - id: hmi_set_fan_mid
+    mode: restart
+    then:
+      - homeassistant.service:
+          service: select.select_option
+          data:
+            entity_id: select.esp32_c6_hvac_controller_hvac_manual_fan_speed
+            option: MID
+
+  - id: hmi_set_fan_high
+    mode: restart
+    then:
+      - homeassistant.service:
+          service: select.select_option
+          data:
+            entity_id: select.esp32_c6_hvac_controller_hvac_manual_fan_speed
+            option: HIGH
+
+  - id: hmi_toggle_humidifier
+    mode: restart
+    then:
+      - if:
+          condition:
+            lambda: 'return id(ha_humidifier_state).state;'
+          then:
+            - homeassistant.service:
+                service: switch.turn_off
+                data:
+                  entity_id: switch.esp32_c6_hvac_controller_hvac_mist_maker
+          else:
+            - homeassistant.service:
+                service: switch.turn_on
+                data:
+                  entity_id: switch.esp32_c6_hvac_controller_hvac_mist_maker
+
+  - id: hmi_update_led_ring
+    mode: restart
+    then:
+    - lvgl.widget.update:
+        id: led_temperature_1
+        bg_color: !lambda |-
+          return id(hmi_emergency_mode) ? (id(hmi_emergency_flash) ? lv_color_hex(0xFF0000) : lv_color_hex(0x808080)) : (id(hmi_indicator_enabled) && !id(hmi_night_mode) && id(hmi_temp_ready) && (int) roundf(fmaxf(0.0f, fminf(1.0f, (id(hmi_temp) - 15.0f) / 15.0f)) * 6.0f) >= 1 ? lv_color_hex(0xFF0000) : lv_color_hex(0x808080));
+    - lvgl.widget.update:
+        id: led_temperature_2
+        bg_color: !lambda |-
+          return id(hmi_emergency_mode) ? (id(hmi_emergency_flash) ? lv_color_hex(0xFF0000) : lv_color_hex(0x808080)) : (id(hmi_indicator_enabled) && !id(hmi_night_mode) && id(hmi_temp_ready) && (int) roundf(fmaxf(0.0f, fminf(1.0f, (id(hmi_temp) - 15.0f) / 15.0f)) * 6.0f) >= 2 ? lv_color_hex(0xFF0000) : lv_color_hex(0x808080));
+    - lvgl.widget.update:
+        id: led_temperature_3
+        bg_color: !lambda |-
+          return id(hmi_emergency_mode) ? (id(hmi_emergency_flash) ? lv_color_hex(0xFF0000) : lv_color_hex(0x808080)) : (id(hmi_indicator_enabled) && !id(hmi_night_mode) && id(hmi_temp_ready) && (int) roundf(fmaxf(0.0f, fminf(1.0f, (id(hmi_temp) - 15.0f) / 15.0f)) * 6.0f) >= 3 ? lv_color_hex(0xFF0000) : lv_color_hex(0x808080));
+    - lvgl.widget.update:
+        id: led_temperature_4
+        bg_color: !lambda |-
+          return id(hmi_emergency_mode) ? (id(hmi_emergency_flash) ? lv_color_hex(0xFF0000) : lv_color_hex(0x808080)) : (id(hmi_indicator_enabled) && !id(hmi_night_mode) && id(hmi_temp_ready) && (int) roundf(fmaxf(0.0f, fminf(1.0f, (id(hmi_temp) - 15.0f) / 15.0f)) * 6.0f) >= 4 ? lv_color_hex(0xFF0000) : lv_color_hex(0x808080));
+    - lvgl.widget.update:
+        id: led_temperature_5
+        bg_color: !lambda |-
+          return id(hmi_emergency_mode) ? (id(hmi_emergency_flash) ? lv_color_hex(0xFF0000) : lv_color_hex(0x808080)) : (id(hmi_indicator_enabled) && !id(hmi_night_mode) && id(hmi_temp_ready) && (int) roundf(fmaxf(0.0f, fminf(1.0f, (id(hmi_temp) - 15.0f) / 15.0f)) * 6.0f) >= 5 ? lv_color_hex(0xFF0000) : lv_color_hex(0x808080));
+    - lvgl.widget.update:
+        id: led_temperature_6
+        bg_color: !lambda |-
+          return id(hmi_emergency_mode) ? (id(hmi_emergency_flash) ? lv_color_hex(0xFF0000) : lv_color_hex(0x808080)) : (id(hmi_indicator_enabled) && !id(hmi_night_mode) && id(hmi_temp_ready) && (int) roundf(fmaxf(0.0f, fminf(1.0f, (id(hmi_temp) - 15.0f) / 15.0f)) * 6.0f) >= 6 ? lv_color_hex(0xFF0000) : lv_color_hex(0x808080));
+    - lvgl.widget.update:
+        id: led_humidity_1
+        bg_color: !lambda |-
+          return id(hmi_emergency_mode) ? (id(hmi_emergency_flash) ? lv_color_hex(0xFF0000) : lv_color_hex(0x808080)) : (id(hmi_indicator_enabled) && !id(hmi_night_mode) && id(hmi_humidity_ready) && (int) roundf(fmaxf(0.0f, fminf(1.0f, id(hmi_humidity) / 100.0f)) * 6.0f) >= 1 ? lv_color_hex(0x0000FF) : lv_color_hex(0x808080));
+    - lvgl.widget.update:
+        id: led_humidity_2
+        bg_color: !lambda |-
+          return id(hmi_emergency_mode) ? (id(hmi_emergency_flash) ? lv_color_hex(0xFF0000) : lv_color_hex(0x808080)) : (id(hmi_indicator_enabled) && !id(hmi_night_mode) && id(hmi_humidity_ready) && (int) roundf(fmaxf(0.0f, fminf(1.0f, id(hmi_humidity) / 100.0f)) * 6.0f) >= 2 ? lv_color_hex(0x0000FF) : lv_color_hex(0x808080));
+    - lvgl.widget.update:
+        id: led_humidity_3
+        bg_color: !lambda |-
+          return id(hmi_emergency_mode) ? (id(hmi_emergency_flash) ? lv_color_hex(0xFF0000) : lv_color_hex(0x808080)) : (id(hmi_indicator_enabled) && !id(hmi_night_mode) && id(hmi_humidity_ready) && (int) roundf(fmaxf(0.0f, fminf(1.0f, id(hmi_humidity) / 100.0f)) * 6.0f) >= 3 ? lv_color_hex(0x0000FF) : lv_color_hex(0x808080));
+    - lvgl.widget.update:
+        id: led_humidity_4
+        bg_color: !lambda |-
+          return id(hmi_emergency_mode) ? (id(hmi_emergency_flash) ? lv_color_hex(0xFF0000) : lv_color_hex(0x808080)) : (id(hmi_indicator_enabled) && !id(hmi_night_mode) && id(hmi_humidity_ready) && (int) roundf(fmaxf(0.0f, fminf(1.0f, id(hmi_humidity) / 100.0f)) * 6.0f) >= 4 ? lv_color_hex(0x0000FF) : lv_color_hex(0x808080));
+    - lvgl.widget.update:
+        id: led_humidity_5
+        bg_color: !lambda |-
+          return id(hmi_emergency_mode) ? (id(hmi_emergency_flash) ? lv_color_hex(0xFF0000) : lv_color_hex(0x808080)) : (id(hmi_indicator_enabled) && !id(hmi_night_mode) && id(hmi_humidity_ready) && (int) roundf(fmaxf(0.0f, fminf(1.0f, id(hmi_humidity) / 100.0f)) * 6.0f) >= 5 ? lv_color_hex(0x0000FF) : lv_color_hex(0x808080));
+    - lvgl.widget.update:
+        id: led_humidity_6
+        bg_color: !lambda |-
+          return id(hmi_emergency_mode) ? (id(hmi_emergency_flash) ? lv_color_hex(0xFF0000) : lv_color_hex(0x808080)) : (id(hmi_indicator_enabled) && !id(hmi_night_mode) && id(hmi_humidity_ready) && (int) roundf(fmaxf(0.0f, fminf(1.0f, id(hmi_humidity) / 100.0f)) * 6.0f) >= 6 ? lv_color_hex(0x0000FF) : lv_color_hex(0x808080));
+    - lvgl.widget.update:
+        id: led_co2_1
+        bg_color: !lambda |-
+          return id(hmi_emergency_mode) ? (id(hmi_emergency_flash) ? lv_color_hex(0xFF0000) : lv_color_hex(0x808080)) : (id(hmi_indicator_enabled) && !id(hmi_night_mode) && id(hmi_co2_ready) && (int) roundf(fmaxf(0.0f, fminf(1.0f, (id(hmi_co2) - 400.0f) / 1600.0f)) * 6.0f) >= 1 ? lv_color_hex(0x00FF00) : lv_color_hex(0x808080));
+    - lvgl.widget.update:
+        id: led_co2_2
+        bg_color: !lambda |-
+          return id(hmi_emergency_mode) ? (id(hmi_emergency_flash) ? lv_color_hex(0xFF0000) : lv_color_hex(0x808080)) : (id(hmi_indicator_enabled) && !id(hmi_night_mode) && id(hmi_co2_ready) && (int) roundf(fmaxf(0.0f, fminf(1.0f, (id(hmi_co2) - 400.0f) / 1600.0f)) * 6.0f) >= 2 ? lv_color_hex(0x00FF00) : lv_color_hex(0x808080));
+    - lvgl.widget.update:
+        id: led_co2_3
+        bg_color: !lambda |-
+          return id(hmi_emergency_mode) ? (id(hmi_emergency_flash) ? lv_color_hex(0xFF0000) : lv_color_hex(0x808080)) : (id(hmi_indicator_enabled) && !id(hmi_night_mode) && id(hmi_co2_ready) && (int) roundf(fmaxf(0.0f, fminf(1.0f, (id(hmi_co2) - 400.0f) / 1600.0f)) * 6.0f) >= 3 ? lv_color_hex(0x00FF00) : lv_color_hex(0x808080));
+    - lvgl.widget.update:
+        id: led_co2_4
+        bg_color: !lambda |-
+          return id(hmi_emergency_mode) ? (id(hmi_emergency_flash) ? lv_color_hex(0xFF0000) : lv_color_hex(0x808080)) : (id(hmi_indicator_enabled) && !id(hmi_night_mode) && id(hmi_co2_ready) && (int) roundf(fmaxf(0.0f, fminf(1.0f, (id(hmi_co2) - 400.0f) / 1600.0f)) * 6.0f) >= 4 ? lv_color_hex(0x00FF00) : lv_color_hex(0x808080));
+    - lvgl.widget.update:
+        id: led_co2_5
+        bg_color: !lambda |-
+          return id(hmi_emergency_mode) ? (id(hmi_emergency_flash) ? lv_color_hex(0xFF0000) : lv_color_hex(0x808080)) : (id(hmi_indicator_enabled) && !id(hmi_night_mode) && id(hmi_co2_ready) && (int) roundf(fmaxf(0.0f, fminf(1.0f, (id(hmi_co2) - 400.0f) / 1600.0f)) * 6.0f) >= 5 ? lv_color_hex(0x00FF00) : lv_color_hex(0x808080));
+    - lvgl.widget.update:
+        id: led_co2_6
+        bg_color: !lambda |-
+          return id(hmi_emergency_mode) ? (id(hmi_emergency_flash) ? lv_color_hex(0xFF0000) : lv_color_hex(0x808080)) : (id(hmi_indicator_enabled) && !id(hmi_night_mode) && id(hmi_co2_ready) && (int) roundf(fmaxf(0.0f, fminf(1.0f, (id(hmi_co2) - 400.0f) / 1600.0f)) * 6.0f) >= 6 ? lv_color_hex(0x00FF00) : lv_color_hex(0x808080));
+    - lvgl.widget.update:
+        id: led_tvoc_1
+        bg_color: !lambda |-
+          return id(hmi_emergency_mode) ? (id(hmi_emergency_flash) ? lv_color_hex(0xFF0000) : lv_color_hex(0x808080)) : (id(hmi_indicator_enabled) && !id(hmi_night_mode) && id(hmi_voc_ready) && (int) roundf(fmaxf(0.0f, fminf(1.0f, id(hmi_voc) / 500.0f)) * 6.0f) >= 1 ? lv_color_hex(0xFFFF00) : lv_color_hex(0x808080));
+    - lvgl.widget.update:
+        id: led_tvoc_2
+        bg_color: !lambda |-
+          return id(hmi_emergency_mode) ? (id(hmi_emergency_flash) ? lv_color_hex(0xFF0000) : lv_color_hex(0x808080)) : (id(hmi_indicator_enabled) && !id(hmi_night_mode) && id(hmi_voc_ready) && (int) roundf(fmaxf(0.0f, fminf(1.0f, id(hmi_voc) / 500.0f)) * 6.0f) >= 2 ? lv_color_hex(0xFFFF00) : lv_color_hex(0x808080));
+    - lvgl.widget.update:
+        id: led_tvoc_3
+        bg_color: !lambda |-
+          return id(hmi_emergency_mode) ? (id(hmi_emergency_flash) ? lv_color_hex(0xFF0000) : lv_color_hex(0x808080)) : (id(hmi_indicator_enabled) && !id(hmi_night_mode) && id(hmi_voc_ready) && (int) roundf(fmaxf(0.0f, fminf(1.0f, id(hmi_voc) / 500.0f)) * 6.0f) >= 3 ? lv_color_hex(0xFFFF00) : lv_color_hex(0x808080));
+    - lvgl.widget.update:
+        id: led_tvoc_4
+        bg_color: !lambda |-
+          return id(hmi_emergency_mode) ? (id(hmi_emergency_flash) ? lv_color_hex(0xFF0000) : lv_color_hex(0x808080)) : (id(hmi_indicator_enabled) && !id(hmi_night_mode) && id(hmi_voc_ready) && (int) roundf(fmaxf(0.0f, fminf(1.0f, id(hmi_voc) / 500.0f)) * 6.0f) >= 4 ? lv_color_hex(0xFFFF00) : lv_color_hex(0x808080));
+    - lvgl.widget.update:
+        id: led_tvoc_5
+        bg_color: !lambda |-
+          return id(hmi_emergency_mode) ? (id(hmi_emergency_flash) ? lv_color_hex(0xFF0000) : lv_color_hex(0x808080)) : (id(hmi_indicator_enabled) && !id(hmi_night_mode) && id(hmi_voc_ready) && (int) roundf(fmaxf(0.0f, fminf(1.0f, id(hmi_voc) / 500.0f)) * 6.0f) >= 5 ? lv_color_hex(0xFFFF00) : lv_color_hex(0x808080));
+    - lvgl.widget.update:
+        id: led_tvoc_6
+        bg_color: !lambda |-
+          return id(hmi_emergency_mode) ? (id(hmi_emergency_flash) ? lv_color_hex(0xFF0000) : lv_color_hex(0x808080)) : (id(hmi_indicator_enabled) && !id(hmi_night_mode) && id(hmi_voc_ready) && (int) roundf(fmaxf(0.0f, fminf(1.0f, id(hmi_voc) / 500.0f)) * 6.0f) >= 6 ? lv_color_hex(0xFFFF00) : lv_color_hex(0x808080));
+
+interval:
+  - interval: 500ms
+    then:
+      - script.execute: hmi_check_emergency
+      - lambda: |-
+          if (id(hmi_emergency_mode))
+            id(hmi_emergency_flash) = !id(hmi_emergency_flash);
+          else
+            id(hmi_emergency_flash) = false;
+      - script.execute: hmi_update_led_ring
+
+# ==========================================
+# I2C BUS
+# CH32V003 I/O expander and GT911
+# ==========================================
+
+i2c:
+  id: bus_a
+  sda: GPIO8
+  scl: GPIO9
+  frequency: 400kHz
+  scan: true
+
+
+# ==========================================
+# Waveshare CH32V003 IO EXPANDER
+# ==========================================
+
+waveshare_io_ch32v003:
+- id: wave_hub
+  address: 0x24
+  i2c_id: bus_a
+
+
+# ==========================================
+# SCREEN BACKLIGHT
+# CH422G EXIO2
+# ==========================================
+
+# ==========================================
+# SCREEN BACKLIGHT CONTROL
+# Waveshare ESP32-S3-Touch-LCD-7B
+# ==========================================
+
+power_supply:
+- id: wave_hub_backlight_enable
+  pin:
+    waveshare_io_ch32v003: wave_hub
+    number: 2
+    mode:
+      output: true
+  enable_time: 0ms
+  keep_on_time: 0ms
+  enable_on_boot: true
+
+output:
+- platform: waveshare_io_ch32v003
+  id: wave_pwm_out
+  waveshare_io_ch32v003_id: wave_hub
+  power_supply: wave_hub_backlight_enable
+  inverted: true
+  zero_means_zero: true
+  safe_pwm_levels:
+    min_value: 1
+    max_value: 247
+
+light:
+- platform: monochromatic
+  id: lcd_backlight
+  name: "HMI Screen Backlight"
+  output: wave_pwm_out
+  restore_mode: ALWAYS_ON
+  default_transition_length: 0.5s
+
+
+# ==========================================
+# DISPLAY
+# 1024 x 600 LANDSCAPE
+# ==========================================
+
+# Waveshare ESP32-S3-Touch-LCD-7B RGB panel configuration.
+# Uses the CH32V003 I/O expander for LCD enable, reset and backlight.
+display:
+- platform: mipi_rgb
+  id: my_display
+  model: RPI
+  dimensions:
+    width: 1024
+    height: 600
+  update_interval: never
+  auto_clear_enabled: false
+  color_order: RGB
+  pclk_frequency: 30MHz
+  pclk_inverted: true
+
+    # LCD power enable: CH32V003 output 6
+  enable_pin:
+  - waveshare_io_ch32v003: wave_hub
+    number: 6
+    mode: OUTPUT
+
+    # LCD reset: CH32V003 output 3
+  reset_pin:
+    waveshare_io_ch32v003: wave_hub
+    number: 3
+    mode: OUTPUT
+
+  de_pin: 5
+  hsync_pin:
+    number: 46
+    ignore_strapping_warning: true
+  vsync_pin:
+    number: 3
+  pclk_pin: 7
+
+  hsync_pulse_width: 162
+  hsync_back_porch: 152
+  hsync_front_porch: 48
+  vsync_pulse_width: 45
+  vsync_back_porch: 13
+  vsync_front_porch: 3
+
+    # RGB565 data pins, from Waveshare's 7B RGB LCD example.
+  data_pins:
+    red: [1, 2, 42, 41, 40]
+    green: [39, 0, 45, 48, 47, 21]
+    blue: [14, 38, 18, 17, 10]
+
+
+# ==========================================
+# TOUCHSCREEN
+# GT911
+# ==========================================
+
+touchscreen:
+- platform: gt911
+  id: my_touchscreen
+  display: my_display
+  interrupt_pin: GPIO4
+
+  reset_pin:
+    waveshare_io_ch32v003: wave_hub
+    number: 1
+    mode: OUTPUT
+
+  on_touch:
+  - logger.log:
+      format: "Touch: X=%d, Y=%d"
+      args: [touch.x, touch.y]
+  - lambda: |-
+      ESP_LOGI("TOUCH", "X=%d, Y=%d, RawX=%d, RawY=%d",
+               touch.x, touch.y, touch.x_raw, touch.y_raw);
+
+# ==========================================
+# FONTS
+# ==========================================
+font:
+  # Keep the five original font sizes, but embed only characters used by HMI labels.
+  # This keeps all current English labels, digits, degree symbol and m³ unit.
+- file: "gfonts://Montserrat"
+  id: font_16
+  size: 16
+  glyphsets: []
+  glyphs: ["0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz .,:-%/°³"]
+- file: "gfonts://Montserrat"
+  id: font_18
+  size: 18
+  glyphsets: []
+  glyphs: ["0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz .,:-%/°³"]
+- file: "gfonts://Montserrat"
+  id: font_20
+  size: 20
+  glyphsets: []
+  glyphs: ["0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz .,:-%/°³"]
+- file: "gfonts://Montserrat"
+  id: font_24
+  size: 24
+  glyphsets: []
+  glyphs: ["0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz .,:-%/°³"]
+- file: "gfonts://Montserrat"
+  id: font_32
+  size: 32
+  glyphsets: []
+  glyphs: ["0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz .,:-%/°³"]
+
+# ==========================================
+# IMAGE ASSETS
+# All paths match C:/Users/gzhom/esphome/Images
+# Identical navigation/mode PNGs are shared to reduce firmware size.
+# ==========================================
+image:
+- platform: file
+  file: "Images/Dashboard/Background.png"
+  id: dashboard_background
+  type: RGB565
+  resize: 960x565
+- platform: file
+  file: "Images/Control/Control-background.png"
+  id: control_background
+  type: RGB565
+  resize: 960x563
+- platform: file
+  file: "Images/Alarm/Alarm-background.png"
+  id: alarm_background
+  type: RGB565
+  resize: 960x563
+- platform: file
+  file: "Images/History/History-background.png"
+  id: history_background
+  type: RGB565
+  resize: 960x563
+- platform: file
+  file: "Images/Weather/Weather-background.png"
+  id: weather_background
+  type: RGB565
+  resize: 960x563
+- platform: file
+  file: "Images/Dashboard/Button-Dashboard-on.png"
+  id: btn_dashboard_on
+  type: RGB565
+  transparency: alpha_channel
+- platform: file
+  file: "Images/Control/Button-Dashboard-off.png"
+  id: btn_dashboard_off
+  type: RGB565
+  transparency: alpha_channel
+- platform: file
+  file: "Images/Dashboard/Button-History-off.png"
+  id: btn_history_off
+  type: RGB565
+  transparency: alpha_channel
+- platform: file
+  file: "Images/Dashboard/Button-Control-off.png"
+  id: btn_control_off
+  type: RGB565
+  transparency: alpha_channel
+- platform: file
+  file: "Images/Dashboard/Button-Alarm-off.png"
+  id: btn_alarm_off
+  type: RGB565
+  transparency: alpha_channel
+- platform: file
+  file: "Images/Dashboard/Button-Weather-off.png"
+  id: btn_weather_off
+  type: RGB565
+  transparency: alpha_channel
+- platform: file
+  file: "Images/Control/Button-Control-on.png"
+  id: ctl_btn_control
+  type: RGB565
+  transparency: alpha_channel
+- platform: file
+  file: "Images/Alarm/Button-Alarm-on.png"
+  id: alm_btn_alarm
+  type: RGB565
+  transparency: alpha_channel
+- platform: file
+  file: "Images/History/Button-History-on.png"
+  id: his_btn_history
+  type: RGB565
+  transparency: alpha_channel
+- platform: file
+  file: "Images/Weather/Button-Weather-on.png"
+  id: wea_btn_weather
+  type: RGB565
+  transparency: alpha_channel
+- platform: file
+  file: "Images/Dashboard/Button-Auto-on.png"
+  id: btn_auto_on
+  type: RGB565
+  transparency: alpha_channel
+- platform: file
+  file: "Images/Dashboard/Button-Auto-off.png"
+  id: btn_auto_off
+  type: RGB565
+  transparency: alpha_channel
+- platform: file
+  file: "Images/Dashboard/Button-Manual-on.png"
+  id: btn_manual_on
+  type: RGB565
+  transparency: alpha_channel
+- platform: file
+  file: "Images/Dashboard/Button-Manual-off.png"
+  id: btn_manual_off
+  type: RGB565
+  transparency: alpha_channel
+- platform: file
+  file: "Images/Dashboard/Button-Night-on.png"
+  id: btn_night_on
+  type: RGB565
+  transparency: alpha_channel
+- platform: file
+  file: "Images/Dashboard/Button-Night-off.png"
+  id: btn_night_off
+  type: RGB565
+  transparency: alpha_channel
+- platform: file
+  file: "Images/Dashboard/CO2 light off.png"
+  id: co2_light_off
+  type: RGB565
+  transparency: alpha_channel
+- platform: file
+  file: "Images/Dashboard/CO2 light on.png"
+  id: co2_light_on
+  type: RGB565
+  transparency: alpha_channel
+- platform: file
+  file: "Images/Dashboard/Humidity light off.png"
+  id: humidity_light_off
+  type: RGB565
+  transparency: alpha_channel
+- platform: file
+  file: "Images/Dashboard/Humidity light on.png"
+  id: humidity_light_on
+  type: RGB565
+  transparency: alpha_channel
+- platform: file
+  file: "Images/Dashboard/Temp light off.png"
+  id: temp_light_off
+  type: RGB565
+  transparency: alpha_channel
+- platform: file
+  file: "Images/Dashboard/Temp light on.png"
+  id: temp_light_on
+  type: RGB565
+  transparency: alpha_channel
+- platform: file
+  file: "Images/Dashboard/TVOC light off.png"
+  id: tvoc_light_off
+  type: RGB565
+  transparency: alpha_channel
+- platform: file
+  file: "Images/Dashboard/TVOC light on.png"
+  id: tvoc_light_on
+  type: RGB565
+  transparency: alpha_channel
+- platform: file
+  file: "Images/Control/Fan-low-off.png"
+  id: fan_low_off
+  type: RGB565
+  transparency: alpha_channel
+- platform: file
+  file: "Images/Control/Fan-low-on.png"
+  id: fan_low_on
+  type: RGB565
+  transparency: alpha_channel
+- platform: file
+  file: "Images/Control/Fan-Medium-off.png"
+  id: fan_medium_off
+  type: RGB565
+  transparency: alpha_channel
+- platform: file
+  file: "Images/Control/Fan-Medium-on.png"
+  id: fan_medium_on
+  type: RGB565
+  transparency: alpha_channel
+- platform: file
+  file: "Images/Control/Fan-High-off.png"
+  id: fan_high_off
+  type: RGB565
+  transparency: alpha_channel
+- platform: file
+  file: "Images/Control/Fan-hight-on.png"
+  id: fan_high_on
+  type: RGB565
+  transparency: alpha_channel
+- platform: file
+  file: "Images/Control/Huimiditfier OFF.png"
+  id: humidifier_off
+  type: RGB565
+  transparency: alpha_channel
+- platform: file
+  file: "Images/Control/humidifier ON.png"
+  id: humidifier_on
+  type: RGB565
+  transparency: alpha_channel
+- platform: file
+  file: "Images/Alarm/Alarm-off.png"
+  id: alarm_status_off
+  type: RGB565
+  transparency: alpha_channel
+- platform: file
+  file: "Images/Alarm/Alarm-on.png"
+  id: alarm_status_on
+  type: RGB565
+  transparency: alpha_channel
+- platform: file
+  file: "Images/History/history-24hours-off.png"
+  id: history_24h_off
+  type: RGB565
+  transparency: alpha_channel
+- platform: file
+  file: "Images/History/History-24hours-on.png"
+  id: history_24h_on
+  type: RGB565
+  transparency: alpha_channel
+- platform: file
+  file: "Images/History/history-2days-off.png"
+  id: history_2d_off
+  type: RGB565
+  transparency: alpha_channel
+- platform: file
+  file: "Images/History/History-2days-on.png"
+  id: history_2d_on
+  type: RGB565
+  transparency: alpha_channel
+- platform: file
+  file: "Images/History/History-7days-off.png"
+  id: history_7d_off
+  type: RGB565
+  transparency: alpha_channel
+- platform: file
+  file: "Images/History/History-7days-on.png"
+  id: history_7d_on
+  type: RGB565
+  transparency: alpha_channel
+
+# ==========================================
+# LVGL - FIVE HMI PAGES
+# This is a visual/control-interface foundation. Sensor and actuator
+# actions are placeholders until Home Assistant entities are connected.
+# ==========================================
+lvgl:
+  displays:
+  - my_display
+  touchscreens:
+  - my_touchscreen
+  color_depth: 16
+  bg_color: 0xF5FCFC
+  text_color: 0x111111
+  border_width: 0
+  outline_width: 0
+  shadow_width: 0
+  pad_all: 0
+  pages:
+    # ---------------- DASHBOARD ----------------
+  - id: dashboard_page
+    bg_color: 0xF5FCFC
+    pad_all: 0
+    widgets:
+    - image:
+        src: dashboard_background
+        x: 0
+        y: 0
+            # Upscale the smaller embedded background to fill the 1024x600 panel.
+        scale: 1.0667
+        pivot_x: 0
+        pivot_y: 0
+    - obj:
+        id: led_temperature_1
+        x: 846
+        y: 146
+        width: 16
+        height: 16
+        bg_color: 0xFF3030
+        bg_opa: 100%
+        radius: 8
+        border_width: 0
+    - obj:
+        id: led_temperature_2
+        x: 866
+        y: 151
+        width: 16
+        height: 16
+        bg_color: 0xFF3030
+        bg_opa: 100%
+        radius: 8
+        border_width: 0
+    - obj:
+        id: led_temperature_3
+        x: 883
+        y: 161
+        width: 16
+        height: 16
+        bg_color: 0xFF3030
+        bg_opa: 100%
+        radius: 8
+        border_width: 0
+    - obj:
+        id: led_temperature_4
+        x: 898
+        y: 176
+        width: 16
+        height: 16
+        bg_color: 0xFF3030
+        bg_opa: 100%
+        radius: 8
+        border_width: 0
+    - obj:
+        id: led_temperature_5
+        x: 908
+        y: 193
+        width: 16
+        height: 16
+        bg_color: 0xFF3030
+        bg_opa: 100%
+        radius: 8
+        border_width: 0
+    - obj:
+        id: led_temperature_6
+        x: 913
+        y: 213
+        width: 16
+        height: 16
+        bg_color: 0xFF3030
+        bg_opa: 100%
+        radius: 8
+        border_width: 0
+        # HUMIDITY zone: 6 dots
+    - obj:
+        id: led_humidity_1
+        x: 913
+        y: 233
+        width: 16
+        height: 16
+        bg_color: 0x0878F9
+        bg_opa: 100%
+        radius: 8
+        border_width: 0
+    - obj:
+        id: led_humidity_2
+        x: 908
+        y: 253
+        width: 16
+        height: 16
+        bg_color: 0x0878F9
+        bg_opa: 100%
+        radius: 8
+        border_width: 0
+    - obj:
+        id: led_humidity_3
+        x: 898
+        y: 270
+        width: 16
+        height: 16
+        bg_color: 0x0878F9
+        bg_opa: 100%
+        radius: 8
+        border_width: 0
+    - obj:
+        id: led_humidity_4
+        x: 883
+        y: 285
+        width: 16
+        height: 16
+        bg_color: 0x0878F9
+        bg_opa: 100%
+        radius: 8
+        border_width: 0
+    - obj:
+        id: led_humidity_5
+        x: 866
+        y: 295
+        width: 16
+        height: 16
+        bg_color: 0x0878F9
+        bg_opa: 100%
+        radius: 8
+        border_width: 0
+    - obj:
+        id: led_humidity_6
+        x: 846
+        y: 300
+        width: 16
+        height: 16
+        bg_color: 0x0878F9
+        bg_opa: 100%
+        radius: 8
+        border_width: 0
+        # CO2 zone: 6 dots
+    - obj:
+        id: led_co2_1
+        x: 826
+        y: 300
+        width: 16
+        height: 16
+        bg_color: 0x19B34A
+        bg_opa: 100%
+        radius: 8
+        border_width: 0
+    - obj:
+        id: led_co2_2
+        x: 806
+        y: 295
+        width: 16
+        height: 16
+        bg_color: 0x19B34A
+        bg_opa: 100%
+        radius: 8
+        border_width: 0
+    - obj:
+        id: led_co2_3
+        x: 789
+        y: 285
+        width: 16
+        height: 16
+        bg_color: 0x19B34A
+        bg_opa: 100%
+        radius: 8
+        border_width: 0
+    - obj:
+        id: led_co2_4
+        x: 774
+        y: 270
+        width: 16
+        height: 16
+        bg_color: 0x19B34A
+        bg_opa: 100%
+        radius: 8
+        border_width: 0
+    - obj:
+        id: led_co2_5
+        x: 764
+        y: 253
+        width: 16
+        height: 16
+        bg_color: 0x19B34A
+        bg_opa: 100%
+        radius: 8
+        border_width: 0
+    - obj:
+        id: led_co2_6
+        x: 759
+        y: 233
+        width: 16
+        height: 16
+        bg_color: 0x19B34A
+        bg_opa: 100%
+        radius: 8
+        border_width: 0
+        # TVOC zone: 6 dots
+    - obj:
+        id: led_tvoc_1
+        x: 759
+        y: 213
+        width: 16
+        height: 16
+        bg_color: 0xFFFF00
+        bg_opa: 100%
+        radius: 8
+        border_width: 0
+    - obj:
+        id: led_tvoc_2
+        x: 764
+        y: 193
+        width: 16
+        height: 16
+        bg_color: 0xFFFF00
+        bg_opa: 100%
+        radius: 8
+        border_width: 0
+    - obj:
+        id: led_tvoc_3
+        x: 774
+        y: 176
+        width: 16
+        height: 16
+        bg_color: 0xFFFF00
+        bg_opa: 100%
+        radius: 8
+        border_width: 0
+    - obj:
+        id: led_tvoc_4
+        x: 789
+        y: 161
+        width: 16
+        height: 16
+        bg_color: 0xFFFF00
+        bg_opa: 100%
+        radius: 8
+        border_width: 0
+    - obj:
+        id: led_tvoc_5
+        x: 806
+        y: 151
+        width: 16
+        height: 16
+        bg_color: 0xFFFF00
+        bg_opa: 100%
+        radius: 8
+        border_width: 0
+    - obj:
+        id: led_tvoc_6
+        x: 826
+        y: 146
+        width: 16
+        height: 16
+        bg_color: 0xFFFF00
+        bg_opa: 100%
+        radius: 8
+        border_width: 0
+
+        # Bottom navigation row. These are image-only in this first test.
+    - obj:
+        id: temperature_knob
+        x: 493
+        y: 180
+        width: 20
+        height: 20
+        radius: 10
+        bg_color: 0x20B45A
+        bg_opa: COVER
+        border_width: 2
+        border_color: 0xFFFFFF
+        border_opa: COVER
+        pad_all: 0
+        clickable: false
+        # 24-LED ring: four six-LED OFF arcs placed in separate quadrants.
+        # Coordinates are intentionally staggered; do not stack all four at one origin.
+    - image:
+        src: btn_dashboard_on
+        x: 12
+        y: 510
+    - image:
+        src: btn_history_off
+        x: 218
+        y: 510
+        on_click:
+        - lvgl.page.show: history_page
+    - image:
+        src: btn_control_off
+        x: 424
+        y: 510
+        on_click:
+        - lvgl.page.show: control_page
+    - image:
+        src: btn_alarm_off
+        x: 630
+        y: 510
+        on_click:
+        - lvgl.page.show: alarm_page
+    - image:
+        src: btn_weather_off
+        x: 836
+        y: 510
+        on_click:
+        - lvgl.page.show: weather_page
+        # Operating mode buttons - mutually exclusive image states.
+    - image:
+        id: dashboard_auto_button
+        src: btn_auto_off
+        x: 704
+        y: 401
+        on_click:
+        - script.execute: hmi_set_hvac_auto
+    - image:
+        id: dashboard_manual_button
+        src: btn_manual_on
+        x: 802
+        y: 401
+        on_click:
+        - script.execute: hmi_set_hvac_manual
+    - image:
+        id: dashboard_night_button
+        src: btn_night_off
+        x: 900
+        y: 401
+        on_click:
+        - script.execute: hmi_toggle_night_mode
+    - label:
+        id: top_weather_value
+        x: 365
+        y: 40
+        width: 130
+        text: "Weather --"
+        text_font: font_16
+        text_color: 0x333333
+        on_click:
+          - lvgl.page.show: weather_page
+    - label:
+        id: date_value
+        x: 850
+        y: 26
+        width: 150
+        text: "Date --"
+        text_font: font_16
+        text_color: 0x222222
+    - label:
+        id: time_value
+        x: 850
+        y: 52
+        width: 150
+        text: "--:--"
+        text_font: font_24
+        text_color: 0x111111
+    - label:
+        id: temp_card_value
+        x: 120
+        y: 145
+        width: 180
+        text: "--.- °C"
+        text_font: font_24
+        text_color: 0x222222
+    - label:
+        id: humidity_value
+        x: 120
+        y: 244
+        width: 180
+        text: "--.- %"
+        text_font: font_24
+        text_color: 0x222222
+    - label:
+        id: co2_value
+        x: 120
+        y: 343
+        width: 180
+        text: "--- ppm"
+        text_font: font_24
+        text_color: 0x222222
+    - label:
+        id: tvoc_value
+        x: 120
+        y: 442
+        width: 180
+        text: "--.- mg/m³"
+        text_font: font_20
+        text_color: 0x222222
+    - label:
+        id: room_temperature_value
+        x: 425
+        y: 300
+        width: 160
+        text: "--.-°C"
+        text_font: font_32
+        text_color: 0x111111
+        text_align: CENTER
+    - label:
+        id: min_temperature_value
+        x: 385
+        y: 455
+        width: 75
+        text: "18.0°"
+        text_font: font_18
+        text_color: 0x4C9C00
+        text_align: CENTER
+    - label:
+        id: target_temperature_value
+        x: 475
+        y: 455
+        width: 90
+        text: "22.0°"
+        text_font: font_18
+        text_color: 0x008CBA
+        text_align: CENTER
+    - label:
+        id: max_temperature_value
+        x: 575
+        y: 455
+        width: 75
+        text: "26.0°"
+        text_font: font_18
+        text_color: 0xD94A4A
+        text_align: CENTER
+
+    # ---------------- CONTROL ----------------
+  - id: control_page
+    bg_color: 0xF5FCFC
+    pad_all: 0
+    widgets:
+    - image:
+        src: control_background
+        x: 0
+        y: 0
+            # Upscale the smaller embedded background to fill the 1024x600 panel.
+        scale: 1.0667
+        pivot_x: 0
+        pivot_y: 0
+        # Navigation
+    - image:
+        src: btn_dashboard_off
+        x: 12
+        y: 510
+        on_click:
+        - lvgl.page.show: dashboard_page
+    - image:
+        src: btn_history_off
+        x: 218
+        y: 510
+        on_click:
+        - lvgl.page.show: history_page
+    - image:
+        src: ctl_btn_control
+        x: 424
+        y: 510
+    - image:
+        src: btn_alarm_off
+        x: 630
+        y: 510
+        on_click:
+        - lvgl.page.show: alarm_page
+    - image:
+        src: btn_weather_off
+        x: 836
+        y: 510
+        on_click:
+        - lvgl.page.show: weather_page
+        # Operating mode buttons in the lower-left card - mutually exclusive.
+    - image:
+        id: control_auto_button
+        src: btn_auto_off
+        x: 22
+        y: 393
+        on_click:
+        - script.execute: hmi_set_hvac_auto
+    - image:
+        id: control_manual_button
+        src: btn_manual_on
+        x: 123
+        y: 393
+        on_click:
+        - script.execute: hmi_set_hvac_manual
+    - image:
+        id: control_night_button
+        src: btn_night_off
+        x: 224
+        y: 393
+        on_click:
+        - script.execute: hmi_toggle_night_mode
+    # Live condition labels under Temperature / Humidity / Air Quality headings.
+    - label:
+        id: control_temperature_status
+        x: 500
+        y: 145
+        width: 125
+        text: "WAITING"
+        text_font: font_16
+        text_color: 0x64748B
+        text_align: CENTER
+    - label:
+        id: control_humidity_status
+        x: 680
+        y: 145
+        width: 135
+        text: "WAITING"
+        text_font: font_16
+        text_color: 0x64748B
+        text_align: CENTER
+    - label:
+        id: control_air_quality_status
+        x: 855
+        y: 145
+        width: 145
+        text: "WAITING"
+        text_font: font_16
+        text_color: 0x64748B
+        text_align: CENTER
+
+    - label:
+        id: control_temperature_value
+        x: 80
+        y: 235
+        width: 210
+        text: "--.-°C"
+        text_font: font_32
+        text_color: 0x000000
+        text_align: CENTER
+    - label:
+        id: control_humidity_value
+        x: 420
+        y: 235
+        width: 180
+        text: "--%"
+        text_font: font_32
+        text_color: 0x000000
+        text_align: CENTER
+    - label:
+        id: control_tvoc_value
+        x: 690
+        y: 245
+        width: 155
+        text: "--"
+        text_font: font_24
+        text_color: 0x000000
+        text_align: CENTER
+    - label:
+        id: control_co2_value
+        x: 865
+        y: 245
+        width: 135
+        text: "---"
+        text_font: font_24
+        text_color: 0x000000
+        text_align: CENTER
+
+        # Red triangular position markers under the temperature/humidity gradient bars.
+        # Temperature scale: 10 to 40 °C. Humidity scale: 0 to 100 %.
+    - label:
+        id: control_temperature_marker
+        x: 168
+        y: 329
+        width: 18
+        text: "▲"
+        text_font: font_16
+        text_color: 0xB00000
+        text_align: CENTER
+        clickable: false
+    - label:
+        id: control_humidity_marker
+        x: 497
+        y: 329
+        width: 18
+        text: "▲"
+        text_font: font_16
+        text_color: 0xB00000
+        text_align: CENTER
+        clickable: false
+
+        # Fan speed buttons positioned in the Air Quality card (Low / Medium / High).
+    - image:
+        id: control_fan_low_button
+        src: fan_low_off
+        x: 683
+        y: 320
+        on_click:
+        - script.execute: hmi_set_fan_low
+    - image:
+        id: control_fan_medium_button
+        src: fan_medium_off
+        x: 786
+        y: 320
+        on_click:
+        - script.execute: hmi_set_fan_mid
+    - image:
+        id: control_fan_high_button
+        src: fan_high_off
+        x: 889
+        y: 320
+        on_click:
+        - script.execute: hmi_set_fan_high
+    - image:
+        id: humidifier_button
+        src: humidifier_off
+        # Move the ON/OFF button to the right of the humidifier icon to avoid overlap.
+        x: 910
+        y: 390
+        on_click:
+        - script.execute: hmi_toggle_humidifier
+    # Current output states: Fan / Humidifier / Alert.
+    - label:
+        id: control_fan_state_label
+        x: 365
+        y: 465
+        width: 140
+        text: "OFF"
+        text_font: font_16
+        text_color: 0x64748B
+        text_align: CENTER
+    - label:
+        id: control_humidifier_output_label
+        x: 555
+        y: 465
+        width: 150
+        text: "OFF"
+        text_font: font_16
+        text_color: 0x64748B
+        text_align: CENTER
+    - label:
+        id: control_alarm_state_label
+        x: 740
+        y: 465
+        width: 140
+        text: "NORMAL"
+        text_font: font_16
+        text_color: 0x168A45
+        text_align: CENTER
+
+    - label:
+        id: humidifier_state_label
+        x: 850
+        y: 465
+        width: 150
+        text: "OFF"
+        text_font: font_18
+        text_color: 0x64748B
+        text_align: CENTER
+
+
+    # ---------------- ALARM ----------------
+  - id: alarm_page
+    bg_color: 0xF5FCFC
+    pad_all: 0
+    widgets:
+    - image:
+        src: alarm_background
+        x: 0
+        y: 0
+            # Upscale the smaller embedded background to fill the 1024x600 panel.
+        scale: 1.0667
+        pivot_x: 0
+        pivot_y: 0
+    - image:
+        src: btn_dashboard_off
+        x: 12
+        y: 510
+        on_click:
+        - lvgl.page.show: dashboard_page
+    - image:
+        src: btn_history_off
+        x: 218
+        y: 510
+        on_click:
+        - lvgl.page.show: history_page
+    - image:
+        src: btn_control_off
+        x: 424
+        y: 510
+        on_click:
+        - lvgl.page.show: control_page
+    - image:
+        src: alm_btn_alarm
+        x: 630
+        y: 510
+    - image:
+        src: btn_weather_off
+        x: 836
+        y: 510
+        on_click:
+        - lvgl.page.show: weather_page
+        # Alarm status indicators aligned with the four table rows
+    - image:
+        id: temp_alarm_status
+        src: alarm_status_off
+        x: 865
+        y: 190
+    - image:
+        id: humidity_alarm_status
+        src: alarm_status_off
+        x: 865
+        y: 266
+    - image:
+        id: co2_alarm_status
+        src: alarm_status_off
+        x: 865
+        y: 342
+    - image:
+        id: humidifier_alarm_status
+        src: alarm_status_off
+        x: 865
+        y: 418
+
+    # ---------------- HISTORY ----------------
+  - id: history_page
+    bg_color: 0xF5FCFC
+    pad_all: 0
+    widgets:
+    - image:
+        src: history_background
+        x: 0
+        y: 0
+            # Upscale the smaller embedded background to fill the 1024x600 panel.
+        scale: 1.0667
+        pivot_x: 0
+        pivot_y: 0
+    # Live rolling curves: new samples appear at the right and older samples move left
+    - line:
+        id: history_temp_curve
+        x: 75
+        y: 170
+        width: 260
+        height: 205
+        points:
+          - 0, 220
+          - 215, 205
+        line_width: 3
+        line_color: 0xE53935
+        line_rounded: true
+    - line:
+        id: history_humidity_curve
+        x: 405
+        y: 170
+        width: 258
+        height: 205
+        points:
+          - 0, 220
+          - 215, 205
+        line_width: 3
+        line_color: 0x1976D2
+        line_rounded: true
+    - line:
+        id: history_co2_curve
+        x: 729
+        y: 170
+        width: 225
+        height: 205
+        points:
+          - 0, 220
+          - 390, 205
+        line_width: 3
+        line_color: 0x2E9D50
+        line_rounded: true
+    - line:
+        id: history_voc_curve
+        x: 729
+        y: 170
+        width: 225
+        height: 205
+        points:
+          - 0, 220
+          - 390, 205
+        line_width: 3
+        line_color: 0x8E44AD
+        line_rounded: true
+    - image:
+        src: btn_dashboard_off
+        x: 12
+        y: 510
+        on_click:
+        - lvgl.page.show: dashboard_page
+    - image:
+        src: his_btn_history
+        x: 218
+        y: 510
+    - image:
+        src: btn_control_off
+        x: 424
+        y: 510
+        on_click:
+        - lvgl.page.show: control_page
+    - image:
+        src: btn_alarm_off
+        x: 630
+        y: 510
+        on_click:
+        - lvgl.page.show: alarm_page
+    - image:
+        src: btn_weather_off
+        x: 836
+        y: 510
+        on_click:
+        - lvgl.page.show: weather_page
+        # Time-range selection buttons
+    - image:
+        id: history_24h_button
+        src: history_24h_on
+        x: 204
+        y: 115
+        on_click:
+        - lambda: |-
+            id(history_range) = 0;
+            auto fmt = [](float v, const char *unit, char *out, size_t n) {
+              if (v < -0.5f) snprintf(out, n, "--");
+              else if (strcmp(unit, "°C") == 0 || strcmp(unit, "%") == 0) snprintf(out, n, "%.1f%s", v, unit);
+              else snprintf(out, n, "%.0f%s", v, unit);
+            };
+            char b[32];
+            fmt(id(hist_temp_min_24h), "°C", b, sizeof(b)); lv_label_set_text(id(history_temp_min_value), b);
+            fmt(id(hist_temp_mean_24h), "°C", b, sizeof(b)); lv_label_set_text(id(history_temp_mean_value), b);
+            fmt(id(hist_temp_max_24h), "°C", b, sizeof(b)); lv_label_set_text(id(history_temp_max_value), b);
+            fmt(id(hist_humidity_min_24h), "%", b, sizeof(b)); lv_label_set_text(id(history_humidity_min_value), b);
+            fmt(id(hist_humidity_mean_24h), "%", b, sizeof(b)); lv_label_set_text(id(history_humidity_mean_value), b);
+            fmt(id(hist_humidity_max_24h), "%", b, sizeof(b)); lv_label_set_text(id(history_humidity_max_value), b);
+            fmt(id(hist_co2_mean_24h), "ppm", b, sizeof(b)); lv_label_set_text(id(history_co2_mean_value), b);
+            fmt(id(hist_tvoc_mean_24h), "mg/m³", b, sizeof(b)); lv_label_set_text(id(history_tvoc_mean_value), b);
+        - lvgl.image.update:
+            id: history_24h_button
+            src: history_24h_on
+        - lvgl.image.update:
+            id: history_2d_button
+            src: history_2d_off
+        - lvgl.image.update:
+            id: history_7d_button
+            src: history_7d_off
+        - lvgl.label.update:
+            id: history_range_status
+            text: "History range: 24 Hours"
+    - image:
+        id: history_2d_button
+        src: history_2d_off
+        x: 316
+        y: 115
+        on_click:
+        - lambda: |-
+            id(history_range) = 1;
+            auto fmt = [](float v, const char *unit, char *out, size_t n) {
+              if (v < -0.5f) snprintf(out, n, "--");
+              else if (strcmp(unit, "°C") == 0 || strcmp(unit, "%") == 0) snprintf(out, n, "%.1f%s", v, unit);
+              else snprintf(out, n, "%.0f%s", v, unit);
+            };
+            char b[32];
+            fmt(id(hist_temp_min_2d), "°C", b, sizeof(b)); lv_label_set_text(id(history_temp_min_value), b);
+            fmt(id(hist_temp_mean_2d), "°C", b, sizeof(b)); lv_label_set_text(id(history_temp_mean_value), b);
+            fmt(id(hist_temp_max_2d), "°C", b, sizeof(b)); lv_label_set_text(id(history_temp_max_value), b);
+            fmt(id(hist_humidity_min_2d), "%", b, sizeof(b)); lv_label_set_text(id(history_humidity_min_value), b);
+            fmt(id(hist_humidity_mean_2d), "%", b, sizeof(b)); lv_label_set_text(id(history_humidity_mean_value), b);
+            fmt(id(hist_humidity_max_2d), "%", b, sizeof(b)); lv_label_set_text(id(history_humidity_max_value), b);
+            fmt(id(hist_co2_mean_2d), "ppm", b, sizeof(b)); lv_label_set_text(id(history_co2_mean_value), b);
+            fmt(id(hist_tvoc_mean_2d), "mg/m³", b, sizeof(b)); lv_label_set_text(id(history_tvoc_mean_value), b);
+        - lvgl.image.update:
+            id: history_2d_button
+            src: history_2d_on
+        - lvgl.image.update:
+            id: history_24h_button
+            src: history_24h_off
+        - lvgl.image.update:
+            id: history_7d_button
+            src: history_7d_off
+        - lvgl.label.update:
+            id: history_range_status
+            text: "History range: 2 days"
+    - image:
+        id: history_7d_button
+        src: history_7d_off
+        x: 428
+        y: 115
+        on_click:
+        - lambda: |-
+            id(history_range) = 2;
+            auto fmt = [](float v, const char *unit, char *out, size_t n) {
+              if (v < -0.5f) snprintf(out, n, "--");
+              else if (strcmp(unit, "°C") == 0 || strcmp(unit, "%") == 0) snprintf(out, n, "%.1f%s", v, unit);
+              else snprintf(out, n, "%.0f%s", v, unit);
+            };
+            char b[32];
+            fmt(id(hist_temp_min_7d), "°C", b, sizeof(b)); lv_label_set_text(id(history_temp_min_value), b);
+            fmt(id(hist_temp_mean_7d), "°C", b, sizeof(b)); lv_label_set_text(id(history_temp_mean_value), b);
+            fmt(id(hist_temp_max_7d), "°C", b, sizeof(b)); lv_label_set_text(id(history_temp_max_value), b);
+            fmt(id(hist_humidity_min_7d), "%", b, sizeof(b)); lv_label_set_text(id(history_humidity_min_value), b);
+            fmt(id(hist_humidity_mean_7d), "%", b, sizeof(b)); lv_label_set_text(id(history_humidity_mean_value), b);
+            fmt(id(hist_humidity_max_7d), "%", b, sizeof(b)); lv_label_set_text(id(history_humidity_max_value), b);
+            fmt(id(hist_co2_mean_7d), "ppm", b, sizeof(b)); lv_label_set_text(id(history_co2_mean_value), b);
+            fmt(id(hist_tvoc_mean_7d), "mg/m³", b, sizeof(b)); lv_label_set_text(id(history_tvoc_mean_value), b);
+        - lvgl.image.update:
+            id: history_7d_button
+            src: history_7d_on
+        - lvgl.image.update:
+            id: history_24h_button
+            src: history_24h_off
+        - lvgl.image.update:
+            id: history_2d_button
+            src: history_2d_off
+        - lvgl.label.update:
+            id: history_range_status
+            text: "History range: 7 days"
+
+    # Live historical statistics overlaid on the History background
+    - label:
+        id: history_temp_min_value
+        x: 62
+        y: 447
+        width: 100
+        text: "--"
+        text_font: font_16
+        text_color: 0x17365D
+        text_align: CENTER
+    - label:
+        id: history_temp_mean_value
+        x: 176
+        y: 447
+        width: 100
+        text: "--"
+        text_font: font_16
+        text_color: 0x17365D
+        text_align: CENTER
+    - label:
+        id: history_temp_max_value
+        x: 291
+        y: 447
+        width: 100
+        text: "--"
+        text_font: font_16
+        text_color: 0x17365D
+        text_align: CENTER
+    - label:
+        id: history_humidity_min_value
+        x: 410
+        y: 447
+        width: 100
+        text: "--"
+        text_font: font_16
+        text_color: 0x17365D
+        text_align: CENTER
+    - label:
+        id: history_humidity_mean_value
+        x: 525
+        y: 447
+        width: 100
+        text: "--"
+        text_font: font_16
+        text_color: 0x17365D
+        text_align: CENTER
+    - label:
+        id: history_humidity_max_value
+        x: 640
+        y: 447
+        width: 100
+        text: "--"
+        text_font: font_16
+        text_color: 0x17365D
+        text_align: CENTER
+    - label:
+        id: history_co2_mean_value
+        x: 735
+        y: 470
+        width: 100
+        text: "--"
+        text_font: font_16
+        text_color: 0x17365D
+        text_align: CENTER
+    - label:
+        id: history_tvoc_mean_value
+        x: 865
+        y: 470
+        width: 100
+        text: "--"
+        text_font: font_16
+        text_color: 0x17365D
+        text_align: CENTER
+    - label:
+        id: history_range_status
+        x: 20
+        y: 575
+        width: 400
+        text: "History range: 24 Hours"
+        text_font: font_16
+        text_color: 0x008CBA
+
+    # ---------------- WEATHER ----------------
+  - id: weather_page
+    bg_color: 0xF5FCFC
+    pad_all: 0
+    widgets:
+    # Dynamic header: Winnipeg weather + local date/time
+    - label:
+        id: weather_header_condition
+        x: 28
+        y: 18
+        width: 330
+        text: "Winnipeg | Waiting for weather"
+        text_font: font_16
+        text_color: 0x17365D
+    - label:
+        id: weather_header_temp
+        x: 360
+        y: 18
+        width: 120
+        text: "--.- °C"
+        text_font: font_20
+        text_color: 0x111111
+    - label:
+        id: weather_header_date
+        x: 735
+        y: 12
+        width: 260
+        text: "Syncing date..."
+        text_font: font_16
+        text_color: 0x222222
+    - label:
+        id: weather_header_time
+        x: 790
+        y: 38
+        width: 200
+        text: "Syncing..."
+        text_font: font_24
+        text_color: 0x111111
+    - image:
+        src: weather_background
+        x: 0
+        y: 0
+            # Upscale the smaller embedded background to fill the 1024x600 panel.
+        scale: 1.0667
+        pivot_x: 0
+        pivot_y: 0
+    # Current weather panel
+    - label:
+        id: weather_condition
+        x: 70
+        y: 145
+        width: 360
+        text: "Waiting for weather..."
+        text_font: font_18
+        text_color: 0x263746
+    - label:
+        id: weather_current_temp
+        x: 70
+        y: 178
+        width: 220
+        text: "--.- °C"
+        text_font: font_32
+        text_color: 0x111111
+    - label:
+        id: weather_feels_like
+        x: 70
+        y: 218
+        width: 220
+        text: "Feels like: -- °C"
+        text_font: font_16
+        text_color: 0x52616B
+    - label:
+        id: weather_wind_speed
+        x: 70
+        y: 248
+        width: 180
+        text: "Wind: --"
+        text_font: font_16
+        text_color: 0x52616B
+    - label:
+        id: weather_rain
+        x: 250
+        y: 248
+        width: 180
+        text: "Rain: -- mm"
+        text_font: font_16
+        text_color: 0x52616B
+
+    # Seven-day forecast panel: 7 columns, high / low values populated after HA forecast bridge setup.
+    - label:
+        id: weather_day_0_name
+        x: 520
+        y: 150
+        width: 58
+        text: "Day 1"
+        text_font: font_16
+        text_color: 0x263746
+    - label:
+        id: weather_day_0_icon
+        x: 520
+        y: 178
+        width: 58
+        text: "--"
+        text_font: font_18
+        text_color: 0x1684D8
+    - label:
+        id: weather_day_0_high
+        x: 520
+        y: 210
+        width: 58
+        text: "H --°"
+        text_font: font_16
+        text_color: 0xD94841
+    - label:
+        id: weather_day_0_low
+        x: 520
+        y: 235
+        width: 58
+        text: "L --°"
+        text_font: font_16
+        text_color: 0x1684D8
+    - label:
+        id: weather_day_1_name
+        x: 583
+        y: 150
+        width: 58
+        text: "Day 2"
+        text_font: font_16
+        text_color: 0x263746
+    - label:
+        id: weather_day_1_icon
+        x: 583
+        y: 178
+        width: 58
+        text: "--"
+        text_font: font_18
+        text_color: 0x1684D8
+    - label:
+        id: weather_day_1_high
+        x: 583
+        y: 210
+        width: 58
+        text: "H --°"
+        text_font: font_16
+        text_color: 0xD94841
+    - label:
+        id: weather_day_1_low
+        x: 583
+        y: 235
+        width: 58
+        text: "L --°"
+        text_font: font_16
+        text_color: 0x1684D8
+    - label:
+        id: weather_day_2_name
+        x: 646
+        y: 150
+        width: 58
+        text: "Day 3"
+        text_font: font_16
+        text_color: 0x263746
+    - label:
+        id: weather_day_2_icon
+        x: 646
+        y: 178
+        width: 58
+        text: "--"
+        text_font: font_18
+        text_color: 0x1684D8
+    - label:
+        id: weather_day_2_high
+        x: 646
+        y: 210
+        width: 58
+        text: "H --°"
+        text_font: font_16
+        text_color: 0xD94841
+    - label:
+        id: weather_day_2_low
+        x: 646
+        y: 235
+        width: 58
+        text: "L --°"
+        text_font: font_16
+        text_color: 0x1684D8
+    - label:
+        id: weather_day_3_name
+        x: 709
+        y: 150
+        width: 58
+        text: "Day 4"
+        text_font: font_16
+        text_color: 0x263746
+    - label:
+        id: weather_day_3_icon
+        x: 709
+        y: 178
+        width: 58
+        text: "--"
+        text_font: font_18
+        text_color: 0x1684D8
+    - label:
+        id: weather_day_3_high
+        x: 709
+        y: 210
+        width: 58
+        text: "H --°"
+        text_font: font_16
+        text_color: 0xD94841
+    - label:
+        id: weather_day_3_low
+        x: 709
+        y: 235
+        width: 58
+        text: "L --°"
+        text_font: font_16
+        text_color: 0x1684D8
+    - label:
+        id: weather_day_4_name
+        x: 772
+        y: 150
+        width: 58
+        text: "Day 5"
+        text_font: font_16
+        text_color: 0x263746
+    - label:
+        id: weather_day_4_icon
+        x: 772
+        y: 178
+        width: 58
+        text: "--"
+        text_font: font_18
+        text_color: 0x1684D8
+    - label:
+        id: weather_day_4_high
+        x: 772
+        y: 210
+        width: 58
+        text: "H --°"
+        text_font: font_16
+        text_color: 0xD94841
+    - label:
+        id: weather_day_4_low
+        x: 772
+        y: 235
+        width: 58
+        text: "L --°"
+        text_font: font_16
+        text_color: 0x1684D8
+    - label:
+        id: weather_day_5_name
+        x: 835
+        y: 150
+        width: 58
+        text: "Day 6"
+        text_font: font_16
+        text_color: 0x263746
+    - label:
+        id: weather_day_5_icon
+        x: 835
+        y: 178
+        width: 58
+        text: "--"
+        text_font: font_18
+        text_color: 0x1684D8
+    - label:
+        id: weather_day_5_high
+        x: 835
+        y: 210
+        width: 58
+        text: "H --°"
+        text_font: font_16
+        text_color: 0xD94841
+    - label:
+        id: weather_day_5_low
+        x: 835
+        y: 235
+        width: 58
+        text: "L --°"
+        text_font: font_16
+        text_color: 0x1684D8
+    - label:
+        id: weather_day_6_name
+        x: 898
+        y: 150
+        width: 58
+        text: "Day 7"
+        text_font: font_16
+        text_color: 0x263746
+    - label:
+        id: weather_day_6_icon
+        x: 898
+        y: 178
+        width: 58
+        text: "--"
+        text_font: font_18
+        text_color: 0x1684D8
+    - label:
+        id: weather_day_6_high
+        x: 898
+        y: 210
+        width: 58
+        text: "H --°"
+        text_font: font_16
+        text_color: 0xD94841
+    - label:
+        id: weather_day_6_low
+        x: 898
+        y: 235
+        width: 58
+        text: "L --°"
+        text_font: font_16
+        text_color: 0x1684D8
+
+    # Indoor sensor values and 24-hour forecast removed by request.
+
+    - image:
+        src: btn_dashboard_off
+        x: 12
+        y: 510
+        on_click:
+        - lvgl.page.show: dashboard_page
+    - image:
+        src: btn_history_off
+        x: 218
+        y: 510
+        on_click:
+        - lvgl.page.show: history_page
+    - image:
+        src: btn_control_off
+        x: 424
+        y: 510
+        on_click:
+        - lvgl.page.show: control_page
+    - image:
+        src: btn_alarm_off
+        x: 630
+        y: 510
+        on_click:
+        - lvgl.page.show: alarm_page
+    - image:
+        src: wea_btn_weather
+        x: 836
+        y: 510
